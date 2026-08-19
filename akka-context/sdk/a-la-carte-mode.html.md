@@ -1,0 +1,110 @@
+<!-- <nav> -->
+- [Akka](../index.html)
+- [Developing](index.html)
+- Building with AI
+- [À la carte mode](a-la-carte-mode.html)
+
+<!-- </nav> -->
+
+# À la carte mode
+
+À la carte is the default mode. You drive the spec-driven workflow one command at a time. Nothing blocks you, and `/akka:ship` proceeds whether or not a definition of done is met — you own the rigor. It is faster and lighter than [Enforced mode](enforced-mode.html), which gates each phase on machine-checkable exit conditions. Switch to Enforced with `/akka:mode enforced` when you want that rigor, and back with `/akka:mode a-la-carte`.
+
+This page walks the commands in the order you would normally run them. Every command is also documented in the [Specify commands reference](../reference/specify/index.html).
+
+## <a href="about:blank#_specify_a_feature"></a> Specify a feature
+
+Supplying an entire application in one `/akka:specify` prompt is possible but not recommended — if your application is that simple, a single-file spec is less overhead. To specify a new feature:
+
+```none
+/akka:specify {feature short description} - {feature specification prompt}
+```
+The short description becomes a branch name like `00#-feature-short-description` (kebab case). The prompt should define exclusively the *what* and *why* of the feature, not technical implementation detail.
+
+| **/akka:specify** core users - *The chess application manages its own users. It does not integrate with federation technologies like OAuth. Users are uniquely identified by a username and they authenticate via password. Users can edit their profile and supply a friendly name and upload a small avatar image. Email verification is not used. Users can delete their own accounts. Users can view the profile of other users, but anonymous (not logged in) users cannot see any data.* |
+This creates a specification in `specs/001-core-users` on the `001-core-users` branch. Resist manually editing the spec — clarification is the next step. Keep features scoped small enough that you have a clear idea of the acceptance criteria and the generated code is easy to review.
+
+|  | Even in À la carte mode, `/akka:specify` captures your definition of done as exit conditions and runs the adversarial adequacy review, exactly as it does in Enforced mode. The difference is only at ship time: the `PROC-AUDITOR-COVERAGE` and `PROC-ADEQUACY-REVIEWED` gates are advisory here. They are computed and reported, but you drive the phases and `/akka:ship` is not blocked when they are red. |
+
+## <a href="about:blank#_clarify_the_specification"></a> Clarify the specification
+
+Clarification is a critical step. Start it with a single command, no parameters:
+
+```none
+/akka:clarify
+```
+Your assistant analyzes your constitution, feature specification, and conversation history and identifies gaps — places where it would have to make a decision without enough information. Running `/akka:clarify` on the chess core users feature will likely raise several questions: how users are uniquely identified, what happens to deleted users, whether multiple concurrent sessions are allowed. This level of clarity is a hallmark of spec-driven development.
+
+## <a href="about:blank#_define_the_implementation_plan"></a> Define the implementation plan
+
+The plan is your technical architecture — the *how*. Like specify, its input is a *prompt*, not the final plan; your agent produces the plan as output. If code generation later does not give you what you wanted, iterate on the plan; amendments are tracked alongside constitution and feature updates.
+
+| **/akka:plan** *The implementation is an Akka service with both a static asset website user experience and the supporting RESTful API. The website uses simple JavaScript and not large frameworks like React. These assets are exposed via an HTTP endpoint with the resources in src/main/resources and served statically.*
+
+*The RESTful API is exposed via a separate HTTP endpoint. This API requires authentication for all operations except login. Active user sessions are maintained via Key Value entities and are created upon login. A `TimedAction` deletes sessions for users that have not submitted an API request after a timeout. The RESTful API routes start with a common `api/v1` prefix while static UI assets use the root prefix.* |
+The plan output is categorized by priority and functional requirements, making it easy to verify. Make sure you agree with the functional requirements before continuing.
+
+## <a href="about:blank#_generate_a_task_list"></a> Generate a task list
+
+```none
+/akka:tasks
+```
+This converts your clarified specification and plan into a formal, dependency-ordered set of work items, identifying which can run in parallel. You can refine the list by discussing it with your agent.
+
+## <a href="about:blank#_implement_the_code"></a> Implement the code
+
+```none
+/akka:implement
+```
+Your assistant writes the application code. Before running it, make sure you are satisfied with the effort or "thought" level — results vary between medium and high. It is normal for the agent to hit compilation and test failures and iterate toward the answer; the default Akka constitution mandates both unit and integration tests.
+
+## <a href="about:blank#_build_and_run_locally"></a> Build and run locally
+
+```none
+/akka:build
+```
+`/akka:build` does more than `mvn compile exec:java`: it shuts down pre-existing services and anything on the target port, recompiles, runs the tests, launches the service, and *exercises it through its real endpoints*. The service is left running and is recompiled and restarted automatically when project files change.
+
+## <a href="about:blank#_inspect_the_running_service"></a> Inspect the running service
+
+```none
+/akka:inspect
+```
+Once the service is running — locally after `/akka:build` or deployed via `/akka:deploy` — `/akka:inspect` verifies it against your specification at runtime: it exercises API endpoints, verifies entity state via backoffice tools, and validates the UI in the browser, then summarizes findings. If inspect finds issues, iterate with `/akka:implement` and `/akka:build`.
+
+## <a href="about:blank#_deploy_to_akka"></a> Deploy to Akka
+
+```none
+/akka:deploy
+```
+To deploy through *Akka Automated Operations*, `/akka:deploy` prompts for the organization and project, builds and pushes a container image, and deploys — doing a rolling update if the service is already running. After deployment it verifies component health and inspects the deployed service.
+
+## <a href="about:blank#_other_commands"></a> Other commands
+
+Beyond the core loop, several commands help you shape and maintain the work:
+
+| Command | Use |
+| --- | --- |
+| <a href="../reference/specify/constitution.html">`/akka:constitution`</a> | Create or update the project constitution from principle inputs, keeping dependent templates in sync. |
+| <a href="../reference/specify/analyze.html">`/akka:analyze`</a> | Non-destructive cross-artifact consistency and quality analysis across spec, plan, and tasks — run after task generation to confirm the artifacts are aligned. |
+| <a href="../reference/specify/checklist.html">`/akka:checklist`</a> | Generate a custom checklist for the current feature based on your requirements. |
+| <a href="../reference/specify/review.html">`/akka:review`</a> | Review implemented code for Akka SDK best practices, and optionally against spec, plan, and constitution. |
+| <a href="../reference/specify/converge.html">`/akka:converge`</a> | Assess the codebase against the feature’s spec, plan, and tasks, and append any remaining unbuilt work to tasks.md so `implement` can complete it. |
+| <a href="../reference/specify/reliability.html">`/akka:reliability`</a> | Add or remove resilience-testing instrumentation — discovers endpoints at runtime and writes a config for the reliability dashboard. |
+| <a href="../reference/specify/issues.html">`/akka:issues`</a> | Convert tasks into dependency-ordered GitHub issues for the feature. |
+| <a href="../reference/specify/docs.html">`/akka:docs`</a> | Generate rendered project documentation — a component reference plus entity and interaction diagrams — into the `docs/` folder. |
+
+## <a href="about:blank#_full_command_reference"></a> Full command reference
+
+Every command, with its options and examples, is in the [Specify commands reference](../reference/specify/index.html).
+
+<!-- <footer> -->
+<!-- <nav> -->
+[Enforced mode](enforced-mode.html) [Using an AI coding assistant](ai-coding-assistant.html)
+<!-- </nav> -->
+
+<!-- </footer> -->
+
+<!-- <aside> -->
+
+<!-- </aside> -->

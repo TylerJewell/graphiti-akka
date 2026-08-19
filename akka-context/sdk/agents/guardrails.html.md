@@ -1,0 +1,149 @@
+<!-- <nav> -->
+- [Akka](../../index.html)
+- [Developing](../index.html)
+- [Components](../components/index.html)
+- [Agents](../agents.html)
+- [Guardrails](guardrails.html)
+
+<!-- </nav> -->
+
+# Guardrails
+
+## <a href="about:blank#_overview"></a> Overview
+
+Guardrails are runtime-enforced checks that validate what goes into and comes out of your agents.
+They protect against harmful inputs — such as jailbreak attempts and prompt injection — and damaging outputs — such as toxic language, hallucinated claims, or accidental disclosure of a competitor’s product.
+
+Unlike external validation layers that sit outside your application, Akka guardrails are **part of the runtime itself**.
+You declare them in configuration, and the runtime enforces them on every interaction — whether the request targets a model, an MCP tool, or any other downstream resource.
+This distinction matters: bolt-on governance fails because it depends on developers remembering to call the right library at the right time.
+When governance lives in the runtime, it cannot be bypassed, forgotten, or misconfigured by individual teams.
+
+This architecture directly supports regulatory frameworks such as the **EU AI Act**, which requires that high-risk AI systems embed risk controls into their design rather than relying on after-the-fact auditing.
+Because every guardrail evaluation is recorded in logs, metrics, and traces, you get an auditable compliance trail without extra instrumentation.
+
+|  | For protecting sensitive information like PII, see [Sanitization](../sanitization.html). |
+
+## <a href="about:blank#_implementing_a_guardrail"></a> Implementing a guardrail
+
+A guardrail implements the <a href="../_attachments/api/akka/javasdk/agent/TextGuardrail.html">`TextGuardrail` interface</a>.
+It receives the input or output text as a parameter and returns a result indicating whether the text passed validation, including an explanation of why the decision was made.
+These results are included in metrics and traces.
+A guardrail can abort the interaction with the model, or only report the problem and continue anyway.
+
+An example of a `Guardrail` implementation:
+
+[ToxicGuard.java](https://github.com/akka/akka-sdk/blob/main/samples/doc-snippets/src/main/java/com/example/guardrail/ToxicGuard.java)
+```java
+import akka.javasdk.agent.GuardrailContext;
+import akka.javasdk.agent.TextGuardrail;
+
+public class ToxicGuard implements TextGuardrail {
+
+  private final String searchFor;
+
+  public ToxicGuard(GuardrailContext context) {
+    searchFor = context.config().getString("search-for");
+  }
+
+  @Override
+  public Result evaluate(String text) {
+    // this would typically be more advanced in a real implementation
+    if (text.contains(searchFor)) {
+      return new Result(false, "Toxic response '%s' not allowed.".formatted(searchFor));
+    } else {
+      return Result.OK;
+    }
+  }
+}
+```
+
+## <a href="about:blank#_configuring_guardrails"></a> Configuring guardrails
+
+Guardrails are enabled by configuration, so you can enforce at deployment time that certain guardrails are always active.
+
+src/main/resources/application.conf
+```conf
+akka.javasdk.agent.guardrails {
+  "pii guard" {                                     // (1)
+    class = "com.example.guardrail.PiiGuard"        // (2)
+    agents = ["planner-agent"]                      // (3)
+    agent-roles = ["worker"]                        // (4)
+    category = PII                                  // (5)
+    use-for = ["model-request", "mcp-tool-request"] // (6)
+    report-only = false                             // (7)
+  }
+
+  "toxic guard" {
+    class = "com.example.guardrail.ToxicGuard"
+    agent-roles = ["worker"]
+    category = TOXIC
+    use-for = ["model-response", "mcp-tool-response"]
+    report-only = false
+    search-for = "bad stuff"
+  }
+}
+```
+
+| **1** | Each configured guardrail has a unique name. |
+| **2** | Implementation class of the guardrail. |
+| **3** | Enable this guardrail for agents with these component ids. |
+| **4** | Enable this guardrail for agents with these roles. |
+| **5** | The type of validation, such as PII and TOXIC. |
+| **6** | Where to use the guardrail, such as for the model request or model response. |
+| **7** | If it didn’t pass the evaluation criteria, the execution can either be aborted or continue anyway. In both cases, the result is tracked in logs, metrics and traces. |
+The implementation class of the guardrail is configured with the `class` property. The class must implement the <a href="../_attachments/api/akka/javasdk/agent/TextGuardrail.html">`TextGuardrail` interface</a>. The class may optionally have a constructor with a <a href="../_attachments/api/akka/javasdk/agent/GuardrailContext.html">`GuardrailContext`</a> parameter, which includes the name and the config section for the specific guardrail. In above code example of the `ToxicGuard` you can see how the configuration property `search-for` is read from the configuration of the `GuardrailContext` parameter.
+
+### <a href="about:blank#_agent_selection"></a> Agent selection
+
+You select which agents a guardrail applies to by matching `agents` or `agent-roles` configuration.
+
+- `agents`: enabled for agents with these component ids. If `agents` contains `"*"`, the guardrail is enabled for all agents.
+- `agent-roles`: enabled for agents with these roles. If `agent-roles` contains `"*"`, the guardrail is enabled for all agents that have a role, but not for agents without a role.
+If both `agents` and `agent-roles` are defined, it is enough that one of them matches to enable the guardrail for an agent.
+
+This role is defined in the `@AgentRole` annotation.
+
+### <a href="about:blank#_names_categories_and_observability"></a> Names, categories, and observability
+
+The name and the category are reported in logs, metrics, and traces. The `category` should classify the type of validation. It can be any value, but a few recommended categories are JAILBREAK, PROMPT_INJECTION, PII, TOXIC, HALLUCINATED, NSFW, FORMAT.
+
+The guardrail can be enabled for certain inputs or outputs with the `use-for` property. The `use-for` property accepts the following values: `model-request`, `model-response`, `mcp-tool-request`, `mcp-tool-response`, and `*`.
+
+## <a href="about:blank#_guardrail_of_similar_text"></a> Guardrail of similar text
+
+The built-in <a href="../_attachments/api/akka/javasdk/agent/SimilarityGuard.html">`SimilarityGuard`</a> evaluates the text by making a similarity search in a dataset of "bad examples". If the similarity exceeds a threshold, the result is flagged as blocked.
+
+This is how to configure the `SimilarityGuard`:
+
+src/main/resources/application.conf
+```conf
+akka.javasdk.agent.guardrails {
+  "jailbreak guard" {
+    class = "akka.javasdk.agent.SimilarityGuard"
+    agents = ["planner-agent", "weather-agent"]
+    category = JAILBREAK
+    use-for = ["model-request"]
+    threshold = 0.75
+    bad-examples-resource-dir = "guardrail/jailbreak"
+  }
+}
+```
+Here, it’s using predefined examples of jailbreak prompts in `guardrail/jailbreak`. Those have been incorporated from [https://github.com/verazuo/jailbreak_llms](https://github.com/verazuo/jailbreak_llms/), but you can define your own examples and place in a subdirectory of `src/main/resources/`. All text files in the configured `bad-examples-resource-dir` are included in the similarity search.
+
+You can use this for other things than jailbreak attempt detection.
+
+## <a href="about:blank#_see_also"></a> See also
+
+- [Data sanitization](../sanitization.html) — Complementary PII protection through input and output sanitization.
+
+<!-- <footer> -->
+<!-- <nav> -->
+[Multi-agent orchestration](orchestrating.html) [LLM evaluation](llm_eval.html)
+<!-- </nav> -->
+
+<!-- </footer> -->
+
+<!-- <aside> -->
+
+<!-- </aside> -->

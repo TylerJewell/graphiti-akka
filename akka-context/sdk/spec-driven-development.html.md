@@ -1,0 +1,206 @@
+<!-- <nav> -->
+- [Akka](../index.html)
+- [Developing](index.html)
+- Building with AI
+- [Spec-driven development](spec-driven-development.html)
+
+<!-- </nav> -->
+
+# Spec-driven development
+
+Spec-Driven Development (SDD) turns your natural-language specifications into the single source of truth for an entire application. You write the *what* and *why*; AI generates all the code.
+
+SDD provides a structured, iterative workflow — specify, clarify, plan, task, implement, build, inspect, deploy — backed by a constitution of unbreakable project rules. Every artifact is version-controlled, and automated CI can detect divergence between specification and code.
+
+![Spec-driven development workflow: specify](_images/sdd-workflow.png)
+
+## <a href="about:blank#choosing-your-mode"></a> Choosing your mode
+
+Akka Specify runs in one of two modes. The mode decides whether your definition of done is a hard gate or an advisory checklist.
+
+- **[À la carte mode](a-la-carte-mode.html)** (the default) lets you run the specification commands individually — specify, clarify, plan, tasks, implement, build, and the rest — with nothing blocking you. It is faster and lighter; you own the rigor.
+- **[Enforced mode](enforced-mode.html)** makes you define "done" — as machine-checkable exit conditions — before any code is written, and will not let a feature ship until those conditions are met. You get a cleaner, auditable, repeatable result. In Enforced mode an **enterprise can define exit conditions and definitions of done that Akka enforces** across every project. The cost is more up-front definition and a longer, more thorough build. Opt in with `/akka:mode enforced`.
+
+|  | À la carte (default) | Enforced |
+| --- | --- | --- |
+| Definition of done | Optional, advisory | Required, gated |
+| Result | Flexible, developer-driven | Cleaner, auditable, repeatable |
+| Cost & time | Lower — run only what you need | Higher — more up front, more thorough |
+| Enterprise governance | Not enforced | Org-defined conditions enforced by Akka |
+| Best for | Prototypes, exploration, experienced solo developers | Production systems, teams, regulated work |
+
+## <a href="about:blank#_getting_started_with_sdd"></a> Getting started with SDD
+
+Before you start, [set up your dev env](../getting-started/set-up-dev-env.html) — install the Akka Specify plugin in your AI coding assistant and run `/akka:setup` to configure the CLI, Java, Maven, and your Akka download token. The rest of this page assumes your environment is ready.
+
+### <a href="about:blank#_the_project_constitution"></a> The project constitution
+
+Setup scaffolds your project with a **constitution**. The `constitution.md` file is where unbreakable rules for the entire project are defined — mandates about technology requirements, design rules, and more. Akka provides a default constitution containing all of the mandatory requirements for Akka applications, and you can layer on an additional constitution with mandates from your company, organization, or team — so you maintain your own rules while still benefiting from Akka’s.
+
+The constitution is typically defined once at the start of a project and only refined as necessary. Constitution amendments are considered one-off exceptions and not part of the core development loop.
+
+## <a href="about:blank#_styles_of_ai_assisted_development"></a> Styles of AI-assisted development
+
+There are a few common ways people work with an AI assistant. The simplest is *direct prompting* — you ask for code and get it back — which is fine for demos but has no reliable source of truth, since the same prompt can produce different output each time. A step up is a *single-file specification*: one markdown file capturing the *what*, *why*, and *how* of the application. It gives you a version-controlled source of truth an LLM can check generated code against, but it is written mostly by hand and becomes unwieldy as complexity grows.
+
+Spec-driven development is the formal version of that idea. Instead of one large hand-written file, it uses an iterative, git-friendly process where the AI assistant helps build the specification *and* generate the code from it — producing specs that are consumable by both humans and AI while reducing random, unexpected output. The rest of this page covers that process in detail.
+
+## <a href="about:blank#_using_akka_specify"></a> Using Akka specify
+
+With your environment set up and your project’s constitution in place, you drive the entire spec-driven workflow from inside your AI coding assistant.
+
+### <a href="about:blank#_specify_a_feature"></a> Specify a feature
+
+It is possible to specify an entire application by supplying a prompt to the `/akka:specify` agent command, but it is not recommended. If your application is simple enough that it can be specified in a single prompt or file, use a single-file spec instead — the full spec-driven process is likely overkill for your needs.
+
+To specify a new feature, use the following syntax from inside your AI agent:
+
+```none
+/akka:specify {feature short description} - {feature specification prompt}
+```
+The short description of the feature is turned into a branch name like `00#-feature-short-description` where the description you supply is converted to *kebab case*. This also becomes the name of the new git branch.
+
+The prompt for the feature specification should exclusively define the *what* and *why* of the feature, and should not contain any technical implementation details. In the sample prompt below for a chess application core website, the prompt mentions that the app does not use federated authentication. While this seems like a *how* level (plan) declaration, it belongs at the higher specification level because the concept of federation is a high level specification — the prompt does not mention *how* federation should be coded.
+
+| **/akka:specify** core users - *The chess application manages its own users. It does not integrate with federation technologies like OAuth. Users are uniquely identified by a username and they authenticate via password. Users can edit their profile and supply a friendly name and upload a small avatar image. Email verification is not used. Users can delete their own accounts. Users can view the profile of other users, but anonymous (not logged in) users cannot see any data.* |
+This creates a new specification in the `specs/001-core-users` directory, in the `001-core-users` branch. At this stage, resist the temptation to go and manually edit the spec. Clarification is the next step.
+
+There is no mention in this prompt of services or UI applications or how a web application is supposed to be served. Keep your feature specifications scoped to something small enough where you have a clear idea of the acceptance criteria and the generated code can easily be reviewed by humans or AI. Opinions vary on the scope of a "feature" so this is something teams generally decide amongst themselves and often on a per-feature basis.
+
+### <a href="about:blank#_clarify_the_specification"></a> Clarify the specification
+
+Clarification is a critical step in this process. Start it by using a single command with no parameters:
+
+```none
+/akka:clarify
+```
+Your AI assistant then analyzes your constitution, your feature specification, and any conversation history you have built up and identifies gaps. It looks for places where it would have to make a decision *and* it does not already have enough information to make that decision. If you run `akka.clarify` on the chess core users feature, you will likely be asked several questions.
+
+Typical clarification questions include how users are uniquely identified (internal UUID or username), what happens to deleted users, and whether users can have multiple concurrent sessions from multiple devices. Achieving this level of clarity is a hallmark of spec-driven development that you rarely get with single-file specs or even less formal multi-file specifications.
+
+Once your AI assistant can no longer detect any more necessary clarifications, it is time to define the implementation plan.
+
+### <a href="about:blank#_define_the_implementation_plan"></a> Define the implementation plan
+
+The implementation plan is your technical architecture and technical design. Here you specify the *how* of your application. While it is a popular notion that anyone can build a spec-driven application, this is not entirely accurate. You need to be able to decide how you want your application to be built, and you need to know how to describe that in natural language clear enough for an LLM to understand it.
+
+If you get all the way to code generation for the feature and you did not get what you wanted, then you may need to iterate on the implementation plan. Amendments to the plan are tracked diligently along with constitution and feature updates.
+
+It is worth remembering that, like the specify step, the input to the plan step is a *prompt*, not the full and final plan. Your agent produces the final plan as output.
+
+Take a look at this sample plan prompt for the chess game sample first feature.
+
+| **/akka:plan** *The implementation is an Akka service with both a static asset website user experience and the supporting RESTful API. The website uses simple JavaScript and not large frameworks like React. These assets are exposed via an HTTP endpoint with the resources in src/main/resources and served statically.*
+
+*The website has a clean, professional look and uses tailwind CSS. The application logo should be a simple dark blue king chess piece. It should have a navigation bar on the top with access to login/logout/profile via a menu option in the top right of the nav.*
+
+*The RESTful API is exposed via a separate HTTP endpoint. This API requires authentication for all operations except login. The authn/authz for these HTTP routes can be HTTP Basic and does not need to be anything more complex. Active user sessions are maintained via Key Value entities and are created upon login. This implies that a user will have a different session when logged in on a different device. A `TimedAction` is responsible for deleting sessions for users that have not submitted an API request after some timeout period. The RESTful API routes all start with a common `api/v1` prefix while the static UI assets use the root prefix and if no resource is specified on the URL then the index.html static resource file will be used. This page should be an empty placeholder for now, containing just a placeholder text and the top navigation bar.*
+
+*The static assets will refer to the API via a full URL. This URL defaults to localhost on the current port, but can be overridden via the `CHESS_API_URL` environment variable available when running the service.* |
+There is a balance between including something in your specification prompt and assuming that your AI assistant will infer other important items that need to be in the final plan. It is common to spend extra time iterating on the plan prompt to make sure that the plan output is correct. Thankfully the plan output is categorized by priority and functional requirements, making it easy to verify.
+
+In other words: *make sure you agree with the functional requirements before continuing on to the next step*. If you want to add requirements to the plan, do so interactively with your agent and it will update the plan accordingly.
+
+### <a href="about:blank#_generate_a_task_list"></a> Generate a task list
+
+The next step toward a running feature is to generate a task list with `/akka:tasks`. This takes your clarified specification and your implementation plan and converts them into a formal set of work items. Your agent identifies which tasks should be done first and which ones can be done in parallel. If you are satisfied with the set of tasks generated, continue to the next step.
+
+You can also provide updates to the task list here by discussing it with your agent.
+
+### <a href="about:blank#_implement_the_code"></a> Implement the code
+
+It is finally time to have your assistant write the code. When you use the `/akka:implement` command in your chat prompt, it creates your application code. Make sure that before you run this command, you are satisfied with the level of effort or "thought" being used by your agent. The results can vary drastically between medium and high effort levels.
+
+During this step, it is common to see the agent make mistakes, generate compilation failures, and produce test failures. This is *normal* and the agent should be iterating toward the right answer. Only stop the agent in the middle of this step if you see something drastically wrong or you see the agent diverging from the solution over time instead of converging.
+
+The default Akka constitution mandates both unit and integration tests, so these should also be generated and verified during this step.
+
+When the code is complete, you should be able to exercise any RESTful APIs or user interfaces created. Akka makes this step easier as well.
+
+### <a href="about:blank#_build_and_run_locally"></a> Build and run locally
+
+You should never have to leave your agent chat during the spec-driven SDLC. If you use the `/akka:build` command, you get a ton of extra bonus features beyond a simple `mvn compile exec:java`.
+
+- Pre-existing services are shut down
+- Anything using the target port is shut down
+- Your service is re-compiled and all tests are run
+- Your service is launched
+- Your service is *exercised through the real endpoints* to verify functionality. This is like building and exercising a custom Postman script or writing and using your own shell script, except it is easier and automated.
+- The build command leaves your service running, so you can exercise it manually, including using the Akka console’s built-in request tracking.
+- If you make changes to any of the documents, either from within or outside your agent chat, your service is recompiled and automatically restarted
+
+### <a href="about:blank#_inspect_the_running_service"></a> Inspect the running service
+
+Once your service is running — either locally after `/akka:build` or deployed via `/akka:deploy` — use the `/akka:inspect` command to verify it against your specification. Inspect exercises your service at runtime:
+
+- Verifies the service is running and a feature spec exists
+- Extracts API endpoints and entities from the spec
+- Exercises API endpoints with test requests
+- Verifies entity state via backoffice tools
+- Validates the UI in the browser
+- Summarizes findings and offers next steps
+This is spec-driven *verification* — your agent checks that the running service actually behaves the way the specification says it should. If inspect finds issues, iterate with `/akka:implement` and `/akka:build` before deploying.
+
+### <a href="about:blank#_deploy_to_akka"></a> Deploy to Akka
+
+If you want to deploy your service to Akka’s infrastructure through *Akka Automated Operations*, use the `/akka:deploy` command. This command prompts you for the organization and project into which you want to deploy. It then deploys your service, automatically doing a rolling update of the service cluster if one is already running. After deployment, the command verifies component health and inspects the deployed service using backoffice tools.
+
+### <a href="about:blank#_review_and_analyze"></a> Review and analyze
+
+Two additional commands help you maintain quality as your project evolves:
+
+- `/akka:review` reviews the implemented code against the spec, plan, and constitution. Use this after implementation to catch deviations before they compound.
+- `/akka:analyze` performs a non-destructive cross-artifact consistency and quality analysis across your spec, plan, and task list. Use this after task generation to verify that all artifacts are aligned before implementation begins.
+
+## <a href="about:blank#_specify_your_ideas"></a> Specify your ideas!
+
+The greatest barrier to building new things is rarely the idea. It is usually in the implementation. Spec-Driven Development frees you from this barrier, letting you turn your ideas into specification and plan prompts, and watching as your agent generates and populates a to-do list and implements all code for you.
+
+You no longer have to invest massive amounts of time in "what-if" scenarios — you can just *specify and go*. All you need is `init` → `specify` → `clarify` → `plan` → `tasks` → `implement` → `build` → `inspect` → `deploy`.
+
+Using SDD with careful feature scoping and concise technical implementation plans, you are never more than a matter of minutes from a feature you can interact with. With Akka, those features automatically become powerful, resilient, scalable distributed systems.
+
+## <a href="about:blank#_sdd_commands_in_your_coding_assistant"></a> SDD commands in your coding assistant
+
+| <a href="../reference/specify/setup.html">`/akka:setup`</a> | Configure your environment (CLI, Java, Maven, Akka tokens) |
+| <a href="../reference/specify/constitution.html">`/akka:constitution`</a> | Create or update the project constitution |
+| <a href="../reference/specify/specify.html">`/akka:specify`</a> | Supply a prompt to produce your feature spec |
+| <a href="../reference/specify/clarify.html">`/akka:clarify`</a> | Find gaps in your spec |
+| <a href="../reference/specify/plan.html">`/akka:plan`</a> | Convert your spec into a technical implementation plan |
+| <a href="../reference/specify/tasks.html">`/akka:tasks`</a> | Itemize the work required to build according to the spec |
+| <a href="../reference/specify/analyze.html">`/akka:analyze`</a> | Cross-artifact consistency and quality analysis |
+| <a href="../reference/specify/checklist.html">`/akka:checklist`</a> | Generate a custom checklist for the current feature |
+| <a href="../reference/specify/implement.html">`/akka:implement`</a> | Generate the required code, tests, harnesses, etc. |
+| <a href="../reference/specify/review.html">`/akka:review`</a> | Review code against spec, plan, and constitution |
+| <a href="../reference/specify/build.html">`/akka:build`</a> | Build, test, and run locally with hot reloading |
+| <a href="../reference/specify/inspect.html">`/akka:inspect`</a> | Inspect a running service’s runtime state against the spec |
+| <a href="../reference/specify/deploy.html">`/akka:deploy`</a> | Deploy to Akka Automated Operations |
+| <a href="../reference/specify/issues.html">`/akka:issues`</a> | Convert tasks into GitHub issues |
+| <a href="../reference/specify/converge.html">`/akka:converge`</a> | Assess the codebase against spec, plan, and tasks; append remaining work to `tasks.md` |
+| <a href="../reference/specify/reliability.html">`/akka:reliability`</a> | Add or remove resilience-testing instrumentation for the reliability dashboard |
+| <a href="../reference/specify/docs.html">`/akka:docs`</a> | Generate rendered project documentation into `docs/` |
+These commands are also listed in the [Specify](../reference/specify/index.html).
+
+## <a href="about:blank#_see_also"></a> See also
+
+- [Enforced mode](enforced-mode.html) and [À la carte mode](a-la-carte-mode.html) — the two modes in detail.
+- [Specify](../reference/specify/index.html) — every command, with options and examples.
+- [Auditors](../reference/specify/auditors.html) and [Auditor kinds](../reference/specify/auditor-kinds.html) — the auditor concept and its three kinds (introspective, provisioned, delegated), together with the [coverage gate](../reference/specify/coverage-gate.html), the [adequacy review](../reference/specify/adequacy-review.html), and [requirement analysis](../reference/specify/requirement-analysis.html). Feedback that changes a check re-runs the adequacy review, so what is verified stays aligned with your current intent.
+- [/akka:conform](../reference/specify/conform.html) — run the auditors and print the definition-of-done manifest with a verdict (`akka specify conform`, or `akka_ec_conform` from an MCP client).
+- [/akka:harnesses](../reference/specify/harnesses.html) — provisioned harness assets recorded in `.akka/harnesses.lock`.
+- [Introducing Akka Specify](https://akka.io/blog/introducing-akka-specify) — the blog post that launched SDD on Akka.
+- [spec-kit](https://github.github.com/spec-kit/index.html) — the specification pattern Akka’s SDD process follows.
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/docs/getting-started/intro) — the protocol behind the `/akka:*` slash-commands.
+- [Install the Akka CLI](../operations/cli/installation.html)
+- [Using an AI coding assistant](ai-coding-assistant.html)
+
+<!-- <footer> -->
+<!-- <nav> -->
+[Developing](index.html) [Enforced mode](enforced-mode.html)
+<!-- </nav> -->
+
+<!-- </footer> -->
+
+<!-- <aside> -->
+
+<!-- </aside> -->

@@ -1,0 +1,454 @@
+<!-- <nav> -->
+- [Akka](../index.html)
+- [Developing](index.html)
+- [Components](components/index.html)
+- [Key Value Entities](key-value-entities.html)
+
+<!-- </nav> -->
+
+# Implementing key value entities
+
+![Key value entity](../_images/key-value-entity.png)
+[Key Value Entities](../reference/glossary.html#key_value_entity) are entities that persist the full state on every change. Only the latest state is stored, so we do not have access to any of the history of changes, unlike the event sourced storage used by [Event Sourced Entities](event-sourced-entities.html).
+
+
+Entity and Workflow sharding [Stateful components](../reference/glossary.html#stateful_component), such as Entities and Workflows, offer strong consistency guarantees. Each stateful component can have many instances, identified by [ID](../reference/glossary.html#id). Akka distributes them across every service instance in the cluster. We guarantee that there is only one stateful component instance in the whole service cluster. If a command arrives to a service instance not hosting that stateful component instance, the command is forwarded by the Akka Runtime to the one that hosts that particular component instance. This forwarding is done transparently via [Component Client](../reference/glossary.html#component_client) logic. Because each stateful component instance lives on exactly one service instance, messages can be handled sequentially. Hence, there are no concurrency concerns, each Entity or Workflow instance handles one message at a time.
+
+The state of the stateful component instance is kept in memory as long as it is active. This means it can serve read requests or command validation before updating without additional reads from the durable storage. There might not be room for all stateful component instances to be kept active in memory all the time and therefore least recently used instances can be passivated. When the stateful component is used again it recovers its state from durable storage and becomes an active with its system of record in memory, backed by consistent durable storage. This recovery process is also used in cases of rolling updates, rebalance, and abnormal crashes.
+
+Akka needs to serialize that data to send it to the underlying data store. However, we recommend that you do not persist your service’s public API messages. Persisting private API messages may introduce some overhead when converting from a public message to an internal one but it allows the logic of the service public interface to evolve independently of the data storage format, which should be private.
+
+The steps necessary to implement a Key Value Entity include:
+
+1. Defining the API and model the entity’s state.
+2. Creating and initializing the Entity.
+3. Implementing behavior in command handlers.
+The following sections walk through these steps using a counter service as an example.
+
+## <a href="about:blank#_modeling_the_entity"></a> Modeling the entity
+
+As mentioned above, to help us illustrate a Key Value Entity, you will be implementing a Counter service. For such service, you will want to be able to set the initial counter value but also to increase the counter modifying its state. The state will be a simple `Integer` but you will use a wrapper class `Counter` as the domain model, as shown below:
+
+[Counter.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/domain/Counter.java)
+```java
+public record Counter(int value) {
+  public Counter increment(int delta) {
+    return new Counter(value + delta);
+  }
+}
+```
+
+|  | Above we are taking advantage of the Java `record` to reduce the amount of boilerplate code, but you can use regular classes so long as they can be serialized to JSON (e.g. using Jackson annotations). See [Serialization](serialization.html). |
+
+## <a href="about:blank#_identifying_the_entity"></a> Identifying the Entity
+
+In order to interact with an Entity in Akka, we need to assign a **component id** and an instance **id**:
+
+- **component id** is a unique identifier for all entities of a given type. To define the component id, the entity class must be annotated with `@Component` and have a unique and stable identifier assigned.
+- **id**, on the other hand, is unique per instance. The entity id is used in the component client when calling the entity from for example an Endpoint.
+As an example, an entity representing a customer could have the **component id** `customer` and a customer entity for a specific customer could have the UUID instance **id** `8C59E488-B6A8-4E6D-92F3-760315283B6E`.
+
+|  | The component id and entity id cannot contain the reserved character `\|`, because that is used internally by Akka as a separator. |
+
+## <a href="about:blank#_effect_api"></a> Key value entity’s effect API
+
+The Key Value Entity’s Effect defines the operations that Akka should perform when an incoming command is handled by a Key Value Entity.
+
+A Key Value Entity Effect can either:
+
+- update the entity state and send a reply to the caller
+- directly reply to the caller if the command is not requesting any state change
+- instruct Akka to delete the entity
+- return an error message
+For additional details, refer to [Declarative Effects](../concepts/declarative-effects.html).
+
+## <a href="about:blank#entity-behavior"></a> Implementing behavior
+
+Now that we have our Entity state defined, the remaining steps can be summarized as follows:
+
+- Declare your entity and pick a component id (it needs to be a unique identifier).
+- Initialize your entity state
+- Implement how each command is handled.
+The class signature for our counter entity will look like this:
+
+[CounterEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/application/CounterEntity.java)
+```java
+@Component(id = "counter") // (1)
+public class CounterEntity extends KeyValueEntity<Counter> { // (2)
+
+  private final String entityId;
+
+  public CounterEntity(KeyValueEntityContext context) {
+    this.entityId = context.entityId(); // (3)
+  }
+
+  @Override
+  public Counter emptyState() {
+    return new Counter(0);
+  } // (4)
+
+}
+```
+
+| **1** | Every Entity must be annotated with `@Component` with a stable unique identifier for this entity type. |
+| **2** | The `CounterEntity` class should extend `akka.javasdk.keyvalueentity.KeyValueEntity`. |
+| **3** | Stores the `entityId` on an internal attribute so we can use it later. Alternatively, if inside a command handler, `commandContext().entityId()` also provides such information. |
+| **4** | The initial state of each counter is defined with value 0. |
+
+|  | The `@Component` value `counter` is common for all instances of this entity but must be stable - cannot be changed after a production deploy - and unique across the different entity types in the service. |
+
+### <a href="about:blank#_updating_state"></a> Updating state
+
+We will now show how to add the command handlers for supporting the two desired operations (`set` and `plusOne`). Command handlers are implemented as methods on the entity class but are also exposed for external interactions and always return an `Effect` of some type.
+
+[CounterEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/application/CounterEntity.java)
+```java
+public Effect<Counter> set(int number) {
+  Counter newCounter = new Counter(number);
+  return effects()
+    .updateState(newCounter) // (1)
+    .thenReply(newCounter); // (2)
+}
+
+public Effect<Counter> plusOne() {
+  Counter newCounter = currentState().increment(1); // (3)
+  return effects()
+    .updateState(newCounter) // (4)
+    .thenReply(newCounter);
+}
+```
+
+| **1** | Set the new counter value to the value received from the command request. |
+| **2** | Reply with the new counter value wrapped within a `Counter` object. |
+| **3** | `plusOne` increases the counter by adding 1 to the current state. |
+| **4** | Finally, using the Effect API, you instruct Akka to persist the new state, and build a reply with the wrapper object. |
+
+|  | The **only** way for a command handler to modify the Entity’s state is using the `updateState` effect. Any modifications made directly to the state (or instance variables) from the command handler are not persisted. When the Entity is passivated and reloaded, those modifications will not be present. |
+
+### <a href="about:blank#_retrieving_state"></a> Retrieving state
+
+To have access to the current state of the entity we can use `currentState()` as you have probably noticed from the examples above. The following example shows the implementation of the read-only command handler `get` to retrieve the value for a specific counter:
+
+[CounterEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/application/CounterEntity.java)
+```java
+public ReadOnlyEffect<Counter> get() {
+  return effects().reply(currentState()); // (1)
+}
+```
+
+| **1** | Reply with the current state. |
+What if this is the first command we are receiving for this entity? The initial state is provided by overriding `emptyState()`. We recommend always overriding `emptyState()` to return a sensible default. If not overridden, `currentState()` will return `null` until the first state update, which requires null checks in all command handlers.
+
+|  | We are returning the internal state directly back to the requester. In the endpoint, it is usually best to convert this internal domain model into a public model so the internal representation is free to evolve without breaking clients code. |
+
+### <a href="about:blank#deleting-state"></a> Deleting state
+
+The next example shows how to delete a Key Value Entity state by returning special `deleteEntity()` effect.
+
+[CounterEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/application/CounterEntity.java)
+```java
+public Effect<Done> delete() {
+  return effects()
+    .deleteEntity() // (1)
+    .thenReply(done());
+}
+```
+
+| **1** | We delete the state by returning an `Effect` with `effects().deleteEntity()`. |
+When you give the instruction to delete the entity it will still exist with an empty state for some time. The actual removal happens later to give downstream consumers time to process the change. By default, the existence of the entity is completely cleaned up after a week.
+
+It is not allowed to make further changes after the entity has been "marked" as deleted. You can still handle read requests to the entity until it has been completely removed, but the current state will be empty. To check whether the entity has been deleted, you can use the `isDeleted` method inherited from the `KeyValueEntity` class.
+
+|  | If you do not want to permanently delete an entity, you can instead use the `updateState` effect with an empty state. This will work the same as resetting the entity to its initial state. |
+It is best to not reuse the same entity id after deletion, but if that happens after the entity has been completely removed it will be instantiated as a completely new entity without any knowledge of previous state.
+
+Note that [deleting View state](views.html#ve_delete) must be handled explicitly.
+
+#### <a href="about:blank#_automatic_expiry"></a> Automatic expiry
+
+As an alternative to explicit deletion, you can set a time-to-live (TTL) on a state update using `expireAfter`. The entity will be automatically deleted once the given duration has elapsed without any further updates being made.
+
+[CounterEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/main/java/com/example/application/CounterEntity.java)
+```java
+public Effect<Done> setWithExpiry(int number) {
+  Counter newCounter = new Counter(number);
+  return effects()
+    .updateState(newCounter)
+    .expireAfter(Duration.ofDays(30)) // (1)
+    .thenReply(done());
+}
+```
+
+| **1** | The entity will be deleted 30 days after this write if no further update is made. |
+A subsequent update without `expireAfter` will cancel the TTL. To keep the entity expiring after further updates, each update must include `expireAfter`.
+
+## <a href="about:blank#_replication"></a> Multi-region replication
+
+Stateful components like Event Sourced Entities, Key Value Entities or Workflow can be replicated to other regions. This is useful for several reasons:
+
+- resilience to tolerate failures in one location and still be operational, even multi-cloud redundancy
+- possibility to serve requests from a location near the user to provide better responsiveness
+- load balancing to be able to handle high throughput
+For each stateful component instance there is a primary region, which handles all write requests. Read requests can be served from any region.
+
+Read requests are defined by declaring the command handler method with `ReadOnlyEffect` as return type. A read-only handler cannot update the state, and that is enforced at compile time.
+
+[ShoppingCartEntity.java](https://github.com/akka/akka-sdk/blob/main/samples/shopping-cart-quickstart/src/main/java/shoppingcart/application/ShoppingCartEntity.java)
+```java
+public ReadOnlyEffect<ShoppingCart> getCart() {
+  return effects().reply(currentState()); // (3)
+}
+```
+Write requests are defined by declaring the command handler method with `Effect` as return type, instead of `ReadOnlyEffect`. Write requests are routed to the primary region and handled by the stateful component instance in that region even if the original call to the instance with the component client was made from another region.
+
+State changes (Workflow, Key Value Entity) or events (Event Sourced Entity) persisted by the instance in the primary region are replicated to other regions and processed by corresponding instance there. This means that the state of the stateful components in all regions are updated from the primary.
+
+The replication is asynchronous, which means that read replicas are eventually updated. Normally within a few milliseconds, but if there is for example a problem with the network between the regions it can take longer time for the read replicas to become up to date, but eventually they will.
+
+This also means that you might not see your own writes, immediately. Consider the following:
+
+- send a write request and that is routed to a primary in another region
+- after receiving the response of the write request, you send a read request that is served by the non-primary region
+- the stateful component instance in the non-primary region might not have seen the replicated changes yet, and therefore replies with "stale" information
+If it is important for some read requests to have seen latest writes you can use `Effect` for such command handler, even though it is not persisting any events. Then the request will be routed to the primary and use the latest fully consistent state.
+
+The operational aspects are described in [Regions](../operations/regions/index.html).
+
+### <a href="about:blank#_replication_filters"></a> Replication filters
+
+The state of the entity is by default replicated to all regions that have been enabled for the service. For regulatory reasons or as cost optimization it is possible to filter which regions that participate in the replication for a specific entity. This can be changed at runtime by the entity itself.
+
+CounterEntity.java
+```java
+import akka.Done;
+import akka.javasdk.annotations.Component;
+import akka.javasdk.annotations.EnableReplicationFilter;
+import akka.javasdk.keyvalueentity.KeyValueEntity;
+import akka.javasdk.keyvalueentity.ReplicationFilter;
+
+@Component(id = "counter")
+@EnableReplicationFilter // (1)
+public class CounterEntity extends KeyValueEntity<Counter> {
+
+
+  public Effect<Done> replicateTo(String region) {
+    return effects()
+      .updateReplicationFilter(ReplicationFilter.includeRegion(region)) // (2)
+      .thenReply(Done.getInstance());
+  }
+}
+```
+
+| **1** | Enable the replication filter feature by adding the `@EnableReplicationFilter` annotation. |
+| **2** | Define the replication filter with the `updateReplicationFilter` effect. |
+After enabling the replication filter the entity is still replicated to all regions until specific regions are defined with the `updateReplicationFilter` effect. This effect can be combined with updating the state of the entity. It can also be used without persisting state update, e.g. if it is an explicit command to change the filter, but it is not changing the state of the entity.
+
+The filter can only be updated from the entity’s primary region. With the `request-region` primary selection strategy, updating the filter from a non-primary region will cause that region to become the new primary. The filter is durable for the specific entity instance and can be changed without deploying a new version.
+
+In the <a href="_attachments/api/akka/javasdk/keyvalueentity/ReplicationFilter.html">`ReplicationFilter`</a> you define the regions to be included or excluded in the replication. The region where the update is made, the so-called self region, is automatically included in the replication filter and cannot be excluded. The changes are additive for each entity instance, meaning that if you first `updateReplicationFilter` and include `gcp-us-east1` and then later make another `updateReplicationFilter` and include `aws-us-east-2` from the same entity, then both `gcp-us-east1` and `aws-us-east-2` are included.
+
+When you add the `@EnableReplicationFilter` annotation the entity will still replicate to all regions until you have defined a filter with `updateReplicationFilter`. You can define the filter when updating the state. For example, this is how to effectively disable replication to other regions for a specific entity by defining a filter that only includes the self region:
+
+CounterEntity.java
+```java
+public Effect<Counter> increaseBy(int increaseBy) {
+    var selfRegion = commandContext().selfRegion();
+    Counter newCounter = currentState().increment(increaseBy);
+    return effects()
+      .updateState(newCounter)
+      .updateReplicationFilter(ReplicationFilter.includeRegion(selfRegion))
+      .thenReply(newCounter);
+  }
+```
+If you start with an entity with such self region filter in `gcp-us-east1`, and then later receive a command (not read-only) for this entity instance in another `aws-us-east-2`, it will automatically synchronize the latest state from `gcp-us-east1` before handling the command in `gcp-us-east1`. Such command will also automatically include `aws-us-east-2` to the replication filter and the state will be replicated to both `gcp-us-east1` and `aws-us-east-2`. You can remove a region from the replication with `ReplicationFilter.excludeRegion`.
+
+|  | If you first have a region included in the filter and then exclude it in the filter, the entity instance will still exist in the excluded region, but without receiving any new state changes. In other words, the state will remain as the old state if you access it with read-only commands in the excluded region. |
+
+## <a href="about:blank#_notification"></a> Notification
+
+When a Key Value Entity processes commands, clients often need to track changes in real-time. Rather than repeatedly polling the entity state, you can use the `NotificationPublisher` to push updates to subscribers. This is more efficient and provides a better user experience, especially for entities with frequent state changes.
+
+The notification mechanism works as follows:
+
+1. The entity injects a `NotificationPublisher<T>` where `T` is the notification message type
+2. During command handling, the entity calls `publish(message)` to send notifications
+3. The entity exposes a method returning `NotificationStream<T>` for clients to subscribe
+4. Clients use the `ComponentClient` to subscribe and receive notifications as a stream
+
+### <a href="about:blank#_publishing_notifications"></a> Publishing notifications
+
+To add notifications to a Key Value Entity, inject the `NotificationPublisher` in the constructor and call `publish()` inside `thenReply`, after the state has been successfully persisted.
+
+[UserEntityWithNotifications.java](https://github.com/akka/akka-sdk/blob/main/samples/doc-snippets/src/main/java/com/example/application/UserEntityWithNotifications.java)
+```java
+@Component(id = "user-with-notifications")
+public class UserEntityWithNotifications
+  extends KeyValueEntity<UserEntityWithNotifications.User> {
+
+  public record User(String name, String email) {}
+
+  public sealed interface UserNotification {
+    record UserUpdated(String name, String email) implements UserNotification {}
+  }
+
+  private final NotificationPublisher<UserNotification> notificationPublisher;
+
+  public UserEntityWithNotifications(
+    NotificationPublisher<UserNotification> notificationPublisher
+  ) { // (1)
+    this.notificationPublisher = notificationPublisher;
+  }
+
+  public Effect<Done> createUser(User user) {
+    return effects()
+      .updateState(user)
+      .thenReply(() -> { // (2)
+        notificationPublisher.publish(
+          new UserNotification.UserUpdated(user.name(), user.email())
+        );
+        return Done.done();
+      });
+  }
+
+  public NotificationStream<UserNotification> updates() { // (3)
+    return notificationPublisher.stream();
+  }
+}
+```
+
+| **1** | Inject `NotificationPublisher` typed with your notification message type. This can be a simple `String`, a Java Record, or a sealed interface for multiple message types. |
+| **2** | Publish notifications inside `thenReply` using the `Supplier` overload, after the state has been successfully persisted. This prevents sending notifications if the persist fails. |
+| **3** | Expose the notification stream via a public method. Clients will reference this method when subscribing. |
+
+### <a href="about:blank#_subscribing_to_notifications"></a> Subscribing to notifications
+
+Clients subscribe to entity notifications using the `ComponentClient`. The notifications are delivered as a reactive stream, which can be exposed to external clients as Server-Sent Events (SSE). Map domain types to API records before exposing them to avoid leaking internal domain types.
+
+[UserEndpoint.java](https://github.com/akka/akka-sdk/blob/main/samples/doc-snippets/src/main/java/com/example/api/UserEndpoint.java)
+```java
+@HttpEndpoint("/user")
+@Acl(allow = @Acl.Matcher(principal = Acl.Principal.ALL))
+public class UserEndpoint {
+
+  public record UserUpdate(String type, String name, String email) {} // (1)
+
+  @Get("/updates/{userId}")
+  public HttpResponse updates(String userId) {
+    var source = componentClient
+      .forKeyValueEntity(userId)
+      .notificationStream(UserEntityWithNotifications::updates)
+      .source()
+      .map(notification -> toApi(notification)); // (2)
+    return HttpResponses.serverSentEvents(source);
+  }
+
+  private UserUpdate toApi(UserNotification notification) {
+    return switch (notification) {
+      case UserNotification.UserUpdated updated -> new UserUpdate(
+        "user-updated",
+        updated.name(),
+        updated.email()
+      );
+    };
+  }
+}
+```
+
+| **1** | Define API-specific records to avoid exposing internal domain types outside the service. |
+| **2** | Map domain notifications to API records using the `map` operator on the notification source. |
+
+|  | The notification stream is a live stream that emits messages only after the client creates the stream—it does not replay historical messages. While the stream is running, it delivers all messages in order without message loss. If the stream detects missing messages, it will fail, allowing clients to reconnect and recover. |
+
+|  | Notifications should not be used for building business logic. Akka does not guarantee delivery of every notification. Messages may be lost due to network issues, client disconnections, or other transient failures. If your application requires reliable state synchronization, implement a reconciliation mechanism that fetches the authoritative entity state when needed. |
+
+## <a href="about:blank#_side_effects"></a> Side effects
+
+An entity does not perform any external side effects aside from persisting state changes, replying to the request, and publishing notifications. Other side effects, such as calling external services or other components, should be handled from the Workflow, Consumer, or Endpoint components that are calling the entity.
+
+## <a href="about:blank#_testing_the_entity"></a> Testing the entity
+
+There are two ways to test an Entity:
+
+- Unit test, which only runs the Entity component with a test kit.
+- Integration test, running the entire service with a test kit and the test interacting with it using a component client or over HTTP requests.
+Each way has its benefits, unit tests are faster and provide more immediate feedback about success or failure but can only test a single entity at a time and in isolation. Integration tests, on the other hand, are more realistic and allow many entities to interact with other components inside and outside the service.
+
+### <a href="about:blank#_unit_tests"></a> Unit tests
+
+The following snippet shows how the `KeyValueEntityTestKit` is used to test the `CounterEntity` implementation. Akka provides two main APIs for unit tests, the `KeyValueEntityTestKit` and the `KeyValueEntityResult`. The former gives us the overall state of the entity and the ability to call the command handlers while the latter only holds the effects produced for each individual call to the Entity.
+
+[CounterTest.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/test/java/com/example/CounterTest.java)
+```java
+@Test
+public void testSetAndIncrease() {
+  var testKit = KeyValueEntityTestKit.of(CounterEntity::new); // (1)
+
+  var resultSet = testKit.method(CounterEntity::set).invoke(10); // (2)
+  assertTrue(resultSet.isReply());
+  assertEquals(10, resultSet.getReply().value()); // (3)
+
+  var resultPlusOne = testKit.method(CounterEntity::plusOne).invoke(); // (4)
+  assertTrue(resultPlusOne.isReply());
+  assertEquals(11, resultPlusOne.getReply().value());
+
+  assertEquals(11, testKit.getState().value()); // (5)
+}
+```
+
+| **1** | Creates the TestKit passing the constructor of the Entity. |
+| **2** | Calls the method `set` from the Entity in the `KeyValueEntityTestKit` with value `10`. |
+| **3** | Asserts the reply value is `10`. |
+| **4** | Calls the method `plusOne` from the Entity in the `KeyValueEntityTestKit` and assert reply value of `11`. |
+| **5** | Asserts the state value after both operations is `11`. |
+
+|  | The `KeyValueEntityTestKit` is stateful, and it holds the state of a single entity instance in memory. If you want to test more than one entity in a test, you need to create multiple instances of `KeyValueEntityTestKit`. |
+
+### <a href="about:blank#_integration_tests"></a> Integration tests
+
+The skeleton of an Integration Test is included in the [getting started sample](../getting-started/author-your-first-service.html). The following shows what it could look like to test our Counter Entity:
+
+[CounterIntegrationTest.java](https://github.com/akka/akka-sdk/blob/main/samples/key-value-counter/src/test/java/com/example/CounterIntegrationTest.java)
+```java
+public class CounterIntegrationTest extends TestKitSupport { // (1)
+
+  @Test
+  public void verifyCounterSetAndIncrease() {
+    Counter counterGet = componentClient // (2)
+      .forKeyValueEntity("bar")
+      .method(CounterEntity::get) // (3)
+      .invoke();
+    Assertions.assertEquals(0, counterGet.value());
+
+    Counter counterPlusOne = componentClient
+      .forKeyValueEntity("bar")
+      .method(CounterEntity::plusOne) // (4)
+      .invoke();
+    Assertions.assertEquals(1, counterPlusOne.value());
+
+    Counter counterGetAfter = componentClient // (5)
+      .forKeyValueEntity("bar")
+      .method(CounterEntity::get)
+      .invoke();
+    Assertions.assertEquals(1, counterGetAfter.value());
+  }
+}
+```
+
+| **1** | Note the test class must extend `TestKitSupport`. |
+| **2** | A built-in component client is provided to interact with the components. |
+| **3** | Get the current value of the counter named `bar`. Initial value of counter is expected to be `0`. |
+| **4** | Request to increase the value of counter `bar`. Response should have value `1`. |
+| **5** | Explicitly request current value of `bar`. It should be `1`. |
+
+|  | The integration tests in samples can be run using `mvn verify`. |
+
+<!-- <footer> -->
+<!-- <nav> -->
+[Event Sourced Entities](event-sourced-entities.html) [HTTP Endpoints](http-endpoints.html)
+<!-- </nav> -->
+
+<!-- </footer> -->
+
+<!-- <aside> -->
+
+<!-- </aside> -->

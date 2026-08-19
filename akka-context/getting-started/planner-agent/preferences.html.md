@@ -1,0 +1,270 @@
+<!-- <nav> -->
+- [Akka](../../index.html)
+- [Getting Started](../index.html)
+- [Multi-agent tutorial](index.html)
+- [User preferences](preferences.html)
+
+<!-- </nav> -->
+
+# User preferences
+
+|  | **New to Akka? Start here:**
+
+Use the [Spec-first hello agent](../spec-your-first-agent.html) guide to use your AI assistant for implementing a simple agentic service, running it locally and interacting with it. |
+
+## <a href="about:blank#_overview"></a> Overview
+
+To make the activity suggestions more personalized, we will add user preferences that the `ActivityAgent` will use.
+
+In this part of the guide you will:
+
+- Create an entity for the preferences
+- Use the preferences from the agent
+- Include a user id in the endpoint
+
+## <a href="about:blank#_prerequisites"></a> Prerequisites
+
+- Java 25, we recommend [Eclipse Adoptium](https://adoptium.net/marketplace/)
+- [Apache Maven](https://maven.apache.org/install.html) version 3.9 or later
+- <a href="https://curl.se/download.html">`curl` command-line tool</a>
+- [OpenAI API key](https://platform.openai.com/api-keys)
+
+## <a href="about:blank#_add_the_entity_for_preferences"></a> Add the entity for preferences
+
+Add a new file `PreferencesEntity.java` to `src/main/java/com/example/application/`
+
+PreferencesEntity.java
+```java
+import akka.Done;
+import akka.javasdk.annotations.Component;
+import akka.javasdk.eventsourcedentity.EventSourcedEntity;
+import java.util.List;
+
+@Component(id = "preferences") // (2)
+public class PreferencesEntity extends EventSourcedEntity<Preferences, PreferencesEvent> { // (1)
+
+  public record AddPreference(String preference) {}
+
+  @Override
+  public Preferences emptyState() {
+    return new Preferences(List.of());
+  }
+
+  public Effect<Done> addPreference(AddPreference command) { // (3)
+    return effects()
+      .persist(new PreferencesEvent.PreferenceAdded(command.preference()))
+      .thenReply(__ -> Done.done());
+  }
+
+  public Effect<Preferences> getPreferences() { // (4)
+    return effects().reply(currentState());
+  }
+
+  @Override
+  public Preferences applyEvent(PreferencesEvent event) { // (5)
+    return switch (event) {
+      case PreferencesEvent.PreferenceAdded evt -> currentState()
+        .addPreference(evt.preference());
+    };
+  }
+}
+```
+
+| **1** | Extend `EventSourcedEntity`, with the type of state this entity represents, and the interface for the events it persists. |
+| **2** | Annotate the class so Akka can identify it as an event-sourced entity. |
+| **3** | Define the command handler method to add a preference text. |
+| **4** | Define another command handler to retrieve all preferences. |
+| **5** | Updates of the `Preferences` state is performed from the persisted events. |
+You also need the `Preferences` and the `PreferencesEvent` records.
+
+Add a new file `Preferences.java` to `src/main/java/com/example/domain/`
+
+Preferences.java
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+public record Preferences(List<String> entries) {
+  public Preferences addPreference(String preference) {
+    var newEntries = new ArrayList<>(entries);
+    newEntries.add(preference);
+    return new Preferences(newEntries);
+  }
+}
+```
+Here we use plain text for the preferences, but it could be more structured information.
+
+Add a new file `PreferencesEvent.java` to `src/main/java/com/example/domain/`
+
+PreferencesEvent.java
+```java
+import akka.javasdk.annotations.TypeName;
+
+public sealed interface PreferencesEvent {
+  @TypeName("preference-added")
+  record PreferenceAdded(String preference) implements PreferencesEvent {}
+}
+```
+
+## <a href="about:blank#_use_from_the_agent"></a> Use from the agent
+
+To use the preferences in the `ActivityAgent` we need to inject the component client and retrieve the preferences for a given user id.
+
+ActivityAgent.java
+```java
+import akka.javasdk.agent.Agent;
+import akka.javasdk.annotations.Component;
+import akka.javasdk.client.ComponentClient;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@Component(id = "activity-agent")
+public class ActivityAgent extends Agent {
+
+  public record Request(String userId, String message) {}
+
+  private static final Logger logger = LoggerFactory.getLogger(ActivityAgent.class);
+
+  private static final String SYSTEM_MESSAGE =
+    """
+    You are an activity agent. Your job is to suggest activities in the
+    real world. Like for example, a team building activity, sports, an
+    indoor or outdoor game, board games, a city trip, etc.
+    """.stripIndent();
+
+  private final ComponentClient componentClient;
+
+  public ActivityAgent(ComponentClient componentClient) { // (1)
+    this.componentClient = componentClient;
+  }
+
+  public Effect<String> query(Request request) { // (2)
+    logger.info("Invoked for user [{}] with: {}", request.userId(), request.message());
+    var allPreferences = componentClient
+      .forEventSourcedEntity(request.userId())
+      .method(PreferencesEntity::getPreferences)
+      .invoke(); // (3)
+
+    String userMessage;
+    if (allPreferences.entries().isEmpty()) {
+      userMessage = request.message();
+    } else {
+      userMessage = request.message() +
+      "\nPreferences:\n" +
+      allPreferences.entries().stream().collect(Collectors.joining("\n", "- ", ""));
+    }
+
+    return effects()
+      .systemMessage(SYSTEM_MESSAGE)
+      .userMessage(userMessage) // (4)
+      .thenReply();
+  }
+}
+```
+
+| **1** | Inject `ComponentClient`. |
+| **2** | Include user id in the request to the agent. |
+| **3** | Retrieve the preferences for the given user id. |
+| **4** | In addition to the original message, include the preferences in the user message to the LLM. |
+
+## <a href="about:blank#_user_id_in_endpoint"></a> User id in endpoint
+
+We need to add the user id to the HTTP request.
+
+ActivityEndpoint.java
+```java
+@Post("/activities/{userId}")
+public String suggestActivities(String userId, Request request) { // (1)
+  var sessionId = UUID.randomUUID().toString();
+  return componentClient
+    .forAgent()
+    .inSession(sessionId)
+    .method(ActivityAgent::query)
+    .invoke(new ActivityAgent.Request(userId, request.message())); // (2)
+}
+```
+
+| **1** | Add `userId` as a path parameter. |
+| **2** | Call the agent with the new `ActivityAgent.Request` record that includes the `userId`. |
+
+## <a href="about:blank#_update_preferences_from_endpoint"></a> Update preferences from endpoint
+
+To update the preferences, we add another method to the endpoint:
+
+ActivityEndpoint.java
+```java
+public record AddPreference(String preference) {}
+
+@Post("/preferences/{userId}")
+public HttpResponse addPreference(String userId, AddPreference request) { // (1)
+  componentClient
+    .forEventSourcedEntity(userId)
+    .method(PreferencesEntity::addPreference)
+    .invoke(new PreferencesEntity.AddPreference(request.preference())); // (2)
+
+  return HttpResponses.created();
+}
+```
+
+| **1** | Add a method to add a preference. |
+| **2** | Call the `PreferenceEntity` for the given user id. |
+Use the imports:
+
+```java
+import akka.http.javadsl.model.HttpResponse;
+import akka.javasdk.http.HttpResponses;
+```
+
+## <a href="about:blank#_running_the_service"></a> Running the service
+
+Stop the service with `ctrl-c` if it is still running.
+
+Start your service locally:
+
+```command
+mvn compile exec:java
+```
+Pick a user id, here `alice`, and add some preferences:
+
+```command
+curl -i localhost:9000/preferences/alice \
+  --header "Content-Type: application/json" \
+  -XPOST \
+  --data '{
+    "preference": "I like outdoor activities."
+  }'
+```
+
+```command
+curl -i localhost:9000/preferences/alice \
+  --header "Content-Type: application/json" \
+  -XPOST \
+  --data '{
+    "preference": "I dislike museums."
+  }'
+```
+Ask for activities.
+
+```command
+curl -i -XPOST --location "http://localhost:9000/activities/alice" \
+  --header "Content-Type: application/json" \
+  --data '{"message": "I am in Madrid. What should I do?"}'
+```
+Does it take your preferences into account for the suggestions?
+
+## <a href="about:blank#_next_steps"></a> Next steps
+
+- Activities may depend on the weather forecast. Continue with [Weather agent](weather.html) that will make use of agent function tools.
+- Learn more about the <a href="../../sdk/event-sourced-entities.html">`EventSourcedEntity` component</a>.
+
+<!-- <footer> -->
+<!-- <nav> -->
+[Activity agent](activity.html) [Weather agent](weather.html)
+<!-- </nav> -->
+
+<!-- </footer> -->
+
+<!-- <aside> -->
+
+<!-- </aside> -->
