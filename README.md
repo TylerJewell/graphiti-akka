@@ -24,15 +24,15 @@ Those written specifications are in
 
 ## getzep/graphiti → this port
 
-📉 11,387 Python lines → **2,411 Java lines**
-📁 37 files → **26 files**
-⚡ 1,107 → **69** nanoseconds, deciding whether one fact replaces another
-⚡ 2,917,079 → **938,176** nanoseconds, deciding whether two names mean the same thing
-⚡ 93,734 → **14,390** nanoseconds, merging search results into one order
-🎯 3 of 3 calculations give identical answers
-🖥️ 2 programs running → **2 programs running**
-💾 not measured → **425 MB** of memory
-🚀 not measured → **3.55 seconds** to start
+📉 11,387 Python lines → **2,411 Java lines**<br>
+📁 37 files → **26 files**<br>
+⚡ 1,107 → **69** nanoseconds, deciding whether one fact replaces another<br>
+⚡ 2,917,079 → **938,176** nanoseconds, deciding whether two names mean the same thing<br>
+⚡ 93,734 → **14,390** nanoseconds, merging search results into one order<br>
+🎯 3 of 3 calculations give identical answers<br>
+🖥️ 2 programs running → **2 programs running**<br>
+💾 not measured → **425 MB** of memory<br>
+🚀 not measured → **3.55 seconds** to start<br>
 🔌 4 databases supported → **1**
 
 Counting rule: program files only, blank lines and comment-only lines left out, both sides counted
