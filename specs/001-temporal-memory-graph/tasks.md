@@ -47,20 +47,20 @@ assumption that has been wrong before here.
 
 - [ ] T007 ⛔ **BLOCKED — no FlureeDB instance available in this environment.** Probe a running FlureeDB instance to resolve R-005 — can a valid-time interval be range-queried natively, or must results be filtered after retrieval? Record the finding in specs/001-temporal-memory-graph/research.md and update R-005's status
 - [X] T008 [P] Create the Fact record with both timelines in src/main/java/io/akka/memory/domain/Fact.java
-- [ ] T009 [P] Create the Entity record in src/main/java/io/akka/memory/domain/Entity.java
-- [ ] T010 [P] Create the Episode record in src/main/java/io/akka/memory/domain/Episode.java
+- [X] T009 [P] Create the Entity record in src/main/java/io/akka/memory/domain/Entity.java
+- [X] T010 [P] Create the Episode record in src/main/java/io/akka/memory/domain/Episode.java
 - [X] T011 Implement the invalidation predicate as a pure function on two Facts in src/main/java/io/akka/memory/domain/Fact.java (data-model.md §Fact — exact starts close nothing; out-of-order closes nothing; closing is never deletion)
 - [X] T012 [P] Test the invalidation predicate exhaustively over every combination of absent/before/equal/after for four nullable instants in src/test/java/io/akka/memory/domain/FactInvalidationTest.java
 - [X] T013 [P] Test that the invalidation test suite can fail — mutate the predicate (flip the comparison, drop each null guard) and assert every mutant is caught, in src/test/java/io/akka/memory/domain/FactInvalidationMutationTest.java
 - [X] T014 [P] Implement exact and fuzzy name normalisation and the entropy gate `(length ≥ 6 OR tokens ≥ 2) AND entropy ≥ 1.5` in src/main/java/io/akka/memory/domain/EntityIdentity.java
 - [X] T015 Implement 3-gram shingling, BLAKE2b-keyed MinHash over seeds 0–31, bands of 4, and Jaccard scoring in src/main/java/io/akka/memory/domain/EntityIdentity.java (constants are contract — substituting the hash or its byte order produces a different graph)
-- [ ] T016 [P] Test the identity cascade against generated name pairs, asserting stage order and the ≥ 0.9 threshold, in src/test/java/io/akka/memory/domain/EntityIdentityTest.java
+- [X] T016 [P] Test the identity cascade against generated name pairs, asserting stage order and the ≥ 0.9 threshold, in src/test/java/io/akka/memory/domain/EntityIdentityTest.java
 - [X] T017 [P] Test the identity constants against known values — BLAKE2b digest, big-endian conversion, band count — in src/test/java/io/akka/memory/domain/EntityIdentityConstantsTest.java
 - [X] T018 [P] Test that a one-character name is matchable and a two-character name is not, reproducing the interacting short-name quirks, in src/test/java/io/akka/memory/domain/EntityIdentityShortNameTest.java
 - [X] T019 Implement rank fusion with `rank_const = 1` and first-seen tie order in src/main/java/io/akka/memory/domain/RankFusion.java
 - [X] T020 [P] Test rank fusion including tie order stability and that the constant is behavioural, in src/test/java/io/akka/memory/domain/RankFusionTest.java
-- [ ] T021 Create PartitionState in src/main/java/io/akka/memory/domain/PartitionState.java
-- [ ] T022 Create the PartitionEvent sealed interface with `@TypeName` on every variant in src/main/java/io/akka/memory/domain/PartitionEvent.java (FactClosed is distinct from any deletion)
+- [X] T021 Create PartitionState in src/main/java/io/akka/memory/domain/PartitionState.java
+- [X] T022 Create the PartitionEvent sealed interface with `@TypeName` on every variant in src/main/java/io/akka/memory/domain/PartitionEvent.java (FactClosed is distinct from any deletion)
 - [ ] T023 Implement the FlureeDB persistence adapter — graph, vector and full-text in one store — in src/main/java/io/akka/memory/application/FlureeStore.java, using the R-005 finding from T007
 - [ ] T024 [P] Test the persistence adapter round-trip including a valid-time interval query in src/test/java/io/akka/memory/application/FlureeStoreIntegrationTest.java
 - [ ] T025 Create the Bootstrap ServiceSetup in src/main/java/io/akka/memory/Bootstrap.java
@@ -85,23 +85,23 @@ assumption that has been wrong before here.
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Implement PartitionEntity as an event-sourced entity keyed by partition in src/main/java/io/akka/memory/application/PartitionEntity.java (the unit of serialisation — R-001)
-- [ ] T032 [P] [US1] Unit-test PartitionEntity command handlers with EventSourcedTestKit in src/test/java/io/akka/memory/application/PartitionEntityTest.java
-- [ ] T033 [P] [US1] Implement EntityExtractionAgent in src/main/java/io/akka/memory/application/EntityExtractionAgent.java, selecting the instruction by episode kind with prose as the fallback
-- [ ] T034 [P] [US1] Implement FactExtractionAgent in src/main/java/io/akka/memory/application/FactExtractionAgent.java, inferring validity intervals from content
-- [ ] T035 [P] [US1] Implement EntityResolutionAgent in src/main/java/io/akka/memory/application/EntityResolutionAgent.java, selecting a candidate **by index**, never by identifier
-- [ ] T036 [P] [US1] Implement AttributeHydrationAgent in src/main/java/io/akka/memory/application/AttributeHydrationAgent.java, shown only the facts new in this episode
+- [X] T031 [US1] Implement PartitionEntity as an event-sourced entity keyed by partition in src/main/java/io/akka/memory/application/PartitionEntity.java (the unit of serialisation — R-001)
+- [X] T032 [P] [US1] Unit-test PartitionEntity command handlers with EventSourcedTestKit in src/test/java/io/akka/memory/application/PartitionEntityTest.java
+- [X] T033 [P] [US1] Implement EntityExtractionAgent in src/main/java/io/akka/memory/application/EntityExtractionAgent.java, selecting the instruction by episode kind with prose as the fallback
+- [X] T034 [P] [US1] Implement FactExtractionAgent in src/main/java/io/akka/memory/application/FactExtractionAgent.java, inferring validity intervals from content
+- [X] T035 [P] [US1] Implement EntityResolutionAgent in src/main/java/io/akka/memory/application/EntityResolutionAgent.java, selecting a candidate **by index**, never by identifier
+- [X] T036 [P] [US1] Implement AttributeHydrationAgent in src/main/java/io/akka/memory/application/AttributeHydrationAgent.java, shown only the facts new in this episode
 - [ ] T037 [P] [US1] Test all four agents with TestModelProvider fixed responses in src/test/java/io/akka/memory/application/AgentContractTest.java
-- [ ] T038 [US1] Implement the seven-stage EpisodeIngestWorkflow in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (stages 1–6 in memory; stage 7 is the only writer)
-- [ ] T039 [US1] Suppress automatic step retry in EpisodeIngestWorkflow settings so the runtime cannot recover from failures the source cannot, in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (OD-19)
+- [X] T038 [US1] Implement the seven-stage EpisodeIngestWorkflow in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (stages 1–6 in memory; stage 7 is the only writer)
+- [X] T039 [US1] Suppress automatic step retry in EpisodeIngestWorkflow settings so the runtime cannot recover from failures the source cannot, in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (OD-19)
 - [ ] T040 [US1] Test that a failed stage abandons the episode without reversing earlier writes, in src/test/java/io/akka/memory/application/IngestFailureSemanticsTest.java
 - [ ] T041 [US1] Implement extraction guardrails — an out-of-range entity type falls back to the base type, an excluded type is dropped, unusable episode indices widen attribution to **all** episodes — in src/main/java/io/akka/memory/application/EntityExtractionAgent.java
 - [ ] T042 [P] [US1] Test the extraction guardrail table in src/test/java/io/akka/memory/application/ExtractionGuardrailTest.java
 - [X] T043 [US1] Implement timestamp parse degradation — malformed drops to absent without raising, retrying or substituting the reference time; date-only and zone-less values are accepted and interpreted at UTC midnight — in src/main/java/io/akka/memory/domain/Fact.java
 - [X] T044 [P] [US1] Test timestamp degradation against a hostile corpus, asserting nothing escapes as an exception, in src/test/java/io/akka/memory/domain/TimestampDegradationTest.java
-- [ ] T045 [US1] Implement the attribute length cap as a **drop** with the required-field exemption in src/main/java/io/akka/memory/application/AttributeHydrationAgent.java
-- [ ] T046 [P] [US1] Test the cap on both axes and the required-field exemption in src/test/java/io/akka/memory/application/AttributeCapTest.java
-- [ ] T047 [US1] Implement raw-content retention blanking before the persist stage in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java
+- [X] T045 [US1] Implement the attribute length cap as a **drop** with the required-field exemption in src/main/java/io/akka/memory/application/AttributeHydrationAgent.java
+- [X] T046 [P] [US1] Test the cap on both axes and the required-field exemption in src/test/java/io/akka/memory/application/AttributeCapTest.java
+- [X] T047 [US1] Implement raw-content retention blanking before the persist stage in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java
 - [ ] T048 [US1] Implement FlureeProjectionConsumer to project partition events into the store in src/main/java/io/akka/memory/application/FlureeProjectionConsumer.java
 - [ ] T049 [US1] Implement the ingest operations with asynchronous handoff — validate the reference time synchronously, enqueue, answer 202 — in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
 - [ ] T050 [US1] Integration test: ingest returns immediately without awaiting the pipeline, and a malformed reference time is a synchronous error, in src/test/java/io/akka/memory/api/IngestHandoffIntegrationTest.java
@@ -124,8 +124,8 @@ assumption that has been wrong before here.
 
 ### Implementation for User Story 2
 
-- [ ] T054 [P] [US2] Implement FactsByPartitionView in src/main/java/io/akka/memory/application/FactsByPartitionView.java, consuming partition events
-- [ ] T055 [P] [US2] Implement EpisodesByPartitionView in src/main/java/io/akka/memory/application/EpisodesByPartitionView.java
+- [X] T054 [P] [US2] Implement FactsByPartitionView in src/main/java/io/akka/memory/application/FactsByPartitionView.java, consuming partition events
+- [X] T055 [P] [US2] Implement EpisodesByPartitionView in src/main/java/io/akka/memory/application/EpisodesByPartitionView.java
 - [ ] T056 [US2] Implement hybrid retrieval — semantic, lexical and graph-structural lists fused by RankFusion — in src/main/java/io/akka/memory/application/RetrievalService.java (reads resolve against projections only; the write path is never queried — RENDER-001 §3.4)
 - [ ] T057 [US2] Implement the valid-time query path so a question about world-truth is never answered from record-keeping history, in src/main/java/io/akka/memory/application/RetrievalService.java
 - [ ] T058 [P] [US2] Test that valid-time and transaction-time queries return different answers where the two axes diverge, in src/test/java/io/akka/memory/application/TemporalQuerySeparationTest.java
@@ -149,7 +149,7 @@ assumption that has been wrong before here.
 
 ### Implementation for User Story 3
 
-- [ ] T063 [US3] Implement episode removal, fact deletion and partition clearing on PartitionEntity in src/main/java/io/akka/memory/application/PartitionEntity.java (deletion is distinct from closing — a closed fact is not deleted)
+- [X] T063 [US3] Implement episode removal, fact deletion and partition clearing on PartitionEntity in src/main/java/io/akka/memory/application/PartitionEntity.java (deletion is distinct from closing — a closed fact is not deleted)
 - [ ] T064 [US3] Propagate deletions to the store in src/main/java/io/akka/memory/application/FlureeProjectionConsumer.java
 - [ ] T065 [US3] Implement the deletion operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
 
