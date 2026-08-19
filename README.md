@@ -1,8 +1,8 @@
 # graphiti-akka
 
-A memory service that records what it is told, notices when a later statement contradicts an
-earlier one, and closes the earlier one at the moment the new one takes effect — without deleting
-it.
+Tell it things. It remembers them, and when you later tell it something that contradicts what it
+already knew, it works out when the old thing stopped being true and records that — instead of
+overwriting it. You can still ask what it believed last year.
 
 A port of [getzep/graphiti](https://github.com/getzep/graphiti) onto **Akka**, built with
 **Akka Specify**.
@@ -11,14 +11,14 @@ A port of [getzep/graphiti](https://github.com/getzep/graphiti) onto **Akka**, b
 
 ## Where it came from
 
-`getzep/graphiti` is a temporal knowledge-graph library that builds a queryable graph from a
-stream of episodes. It was ported to derive a specification format precise enough to regenerate a
-system on a different stack — the port is the vehicle, the specification is the deliverable.
+`getzep/graphiti` is a Python library that turns a stream of messages into a memory an AI assistant
+can search. It was rebuilt here to work out how precisely a system has to be written down before it
+can be rebuilt somewhere else — the rebuild is the experiment, the way of writing it down is the
+result.
 
-The specifications this port was generated from are in
+Those written specifications are in
 [TylerJewell/akka-specify-harness](https://github.com/TylerJewell/akka-specify-harness) under
-`graphiti-port/`: eight behavioural specifications written to be stack-neutral, plus a standing
-rendering specification that fixes the target.
+`graphiti-port/`.
 
 ---
 
@@ -26,56 +26,56 @@ rendering specification that fixes the target.
 
 📉 11,387 Python lines → **2,411 Java lines**
 📁 37 files → **26 files**
-⚡ 1,107 ns/op → **69 ns/op** (fact invalidation)
-⚡ 2,917,079 ns/op → **938,176 ns/op** (entity identity)
-⚡ 93,734 ns/op → **14,390 ns/op** (rank fusion)
-🎯 3 of 3 deterministic workloads byte-identical
-🖥️ 2 processes → **2 processes**
-💾 not measured → **425 MB** resident
-🚀 not measured → **3.55 s** cold start
-🔌 4 graph backends → **1 store**
+⚡ 1,107 → **69** nanoseconds, deciding whether one fact replaces another
+⚡ 2,917,079 → **938,176** nanoseconds, deciding whether two names mean the same thing
+⚡ 93,734 → **14,390** nanoseconds, merging search results into one order
+🎯 3 of 3 calculations give identical answers
+🖥️ 2 programs running → **2 programs running**
+💾 not measured → **425 MB** of memory
+🚀 not measured → **3.55 seconds** to start
+🔌 4 databases supported → **1**
 
-Counting rule: lines are source files only, blank and comment-only lines excluded, both sides
-counted by the same tool (`toolkit/loc.py` in the harness). The line and file figures are
-**scope-matched** — the behavioural slice this port implements, against the port's production
-code — not whole projects. The whole-project ratio is 9.6:1 and is not quoted here, because it
-credits the port for scope it never took on.
+Counting rule: program files only, blank lines and comment-only lines left out, both sides counted
+by the same tool. The line and file counts cover **only the part that was rebuilt**, measured
+against the part of the original it replaces — not the whole of either project. Counting whole
+projects gives 9.6:1, which is not quoted here because the original does several things this port
+was never meant to do.
 
-`not measured` means exactly that: the source needs a graph database and a model account to start,
-neither of which was stood up, so its cold start and memory were never observed. An estimate would
-have been easy to write and worth nothing.
+`not measured` means it was not measured. The original needs a graph database and a paid model
+account before it will start, and neither was set up, so how fast it starts and how much memory it
+uses were never observed.
 
-Full method, the numbers that did not make this list, and the one budget this port misses:
-[`bench/REPORT.md`](../graphiti-port/bench/REPORT.md) in the harness, and
-[`docs/budget-report.md`](docs/budget-report.md) here.
+Full method, and the numbers that did not make this list:
+[`bench/REPORT.md`](https://github.com/TylerJewell/akka-specify-harness/blob/main/graphiti-port/bench/REPORT.md).
+The one target this port misses is in [`docs/budget-report.md`](docs/budget-report.md).
 
 ---
 
 ## What it does
 
-From the specification:
-
-- **A later contradicting fact closes the earlier one at the new fact's start, and never deletes
-  it.** History survives correction — a closed fact is still returned, carrying the instant its
-  validity ended.
-- **Two timelines are kept apart.** What was true in the world and what the system believed are
-  separate axes, so a fact learned in March about January is visible to one and not the other.
-- **Two facts starting at the same instant both stay open.** The comparison is strictly later, not
-  later-or-equal. This is reproduced from the original, not chosen.
-- **A fact whose start could not be determined is inert.** It closes nothing and nothing closes it.
-- **Identity is decided by a cascade, not by a name index.** Candidate search, then exact name,
-  then an entropy gate, then fuzzy similarity, then the model. Two identical names are never merged
-  unless a candidate search surfaced one for the other.
-- **Reads never load write state.** Retrieval, fact lookup and episode listing all resolve against
-  a projection, checked by a test that reads the code.
-- **Ingest acknowledges before it processes.** Exactly one field is validated synchronously; every
-  other failure happens afterwards, silently. That asymmetry is the contract.
+- **A newer, conflicting fact ends the older one instead of deleting it.** If Ana joined Acme in
+  March and Globex in July, the Acme fact is marked as having stopped being true in July. Ask about
+  April and you still get Acme.
+- **It keeps "when it was true" separate from "when we found out".** Something learned in March
+  about January is recorded as true from January, and as unknown to the service until March. Asking
+  either question gives a different answer, which is the point.
+- **Two facts that start at the exact same moment both stay.** Neither ends the other. This is
+  copied from the original on purpose, not chosen.
+- **A fact with no date does nothing.** It cannot end another fact and nothing can end it.
+- **Deciding whether two names mean the same person runs through checks, cheapest first.** Look for
+  things it might be, then an exact name match, then a near-match on spelling, and only then ask the
+  model. Two identical names are never merged unless the first step found one while looking for the
+  other.
+- **Answering a question never touches the records it writes to.** Searches read a separate copy, so
+  a slow write cannot slow down a read. A test reads the code and fails if that stops being true.
+- **It says "got it" before it does the work.** Only the date is checked while you wait. Anything
+  else that goes wrong happens afterwards, quietly.
 
 ---
 
 ## Running it — the short path
 
-You do not need Java, Maven, or the Akka CLI installed. Akka Specify installs them for you.
+You do not need Java, Maven, or the Akka command-line tool installed. Akka Specify installs them.
 
 **1. Install Akka Specify** in Claude Code:
 
@@ -94,7 +94,7 @@ Restart Claude Code when it asks.
 
 **3. Open** http://localhost:9000/healthcheck.
 
-You will also need a FlureeDB instance on `127.0.0.1:8090`.
+You will also need FlureeDB running on `127.0.0.1:8090`. That is where everything is stored.
 
 ---
 
@@ -105,19 +105,19 @@ You will also need a FlureeDB instance on `127.0.0.1:8090`.
 - Java 21 or newer
 - Maven 3.9 or newer
 - An Akka download token — run `akka code token` once
-- A FlureeDB instance reachable on `127.0.0.1:8090`
-- `OPENAI_API_KEY` for extraction and embeddings
+- FlureeDB running on `127.0.0.1:8090`
+- `OPENAI_API_KEY`, for reading the messages you send it
 
-### Start the service
+### Start it
 
 ```bash
 mvn compile
 akka local run
 ```
 
-The service starts on **port 9000**.
+It listens on **port 9000**.
 
-### The whole product in three calls
+### The whole thing in three commands
 
 ```bash
 # Ana joins Acme in March
@@ -134,86 +134,88 @@ curl -X POST localhost:9000/messages -H 'content-type: application/json' -d '{
                 "role_type": "user", "timestamp": "2024-07-01T00:00:00Z",
                 "source_description": "readme"}]}'
 
-# Ask what is known
+# Ask what it knows
 curl -X POST localhost:9000/search -H 'content-type: application/json' \
   -d '{"group_ids": ["demo"], "query": "Where does Ana work?", "max_facts": 10}'
 ```
 
-Both facts come back. The Acme one carries `invalid_at` set to July — closed, not deleted.
+You get both facts back. The Acme one has `invalid_at` set to July — ended, not deleted.
 
 Three things about that sequence, each of which has cost someone an hour:
 
-- **Ingest answers `202`, not `200`.** The episode is accepted, not processed. Give it a moment.
-- **`group_ids` is plural and a list.** Sending `group_id` is not an error: the partition falls
-  back to `default` and you get an empty result from a graph you never wrote to.
-- **With no model key, `/search` returns nothing** while ingest still answers `202`. Check
-  `GET /episodes/demo?last_n=5` to see whether ingest actually ran.
+- **Sending a message replies `202`, not `200`.** It means accepted, not finished. Wait a moment
+  before asking.
+- **`group_ids` is plural, and a list.** Sending `group_id` is not an error — it looks in a group
+  called `default` instead, and you get nothing back from a group you never wrote to.
+- **Without a model key, searching finds nothing** even though sending a message still replies
+  `202`. Run `curl "localhost:9000/episodes/demo?last_n=5"` to see whether the message arrived.
 
-### Other operations
-
-```bash
-curl "localhost:9000/episodes/demo?last_n=5"       # most recent first
-curl localhost:9000/entity-edge/<fact-uuid>        # one fact
-curl -X DELETE localhost:9000/entity-edge/<uuid>   # delete a fact, keeping its episode
-curl -X DELETE localhost:9000/episode/<uuid>       # delete an episode and what only it taught
-curl -X DELETE localhost:9000/group/demo           # clear one partition
-curl -X POST   localhost:9000/clear                # clear every partition
-```
-
-The same capabilities are exposed as agent tools at `/mcp`. Both surfaces match the original
-verbatim — paths, field names, status codes and message strings are contract, not naming.
-
-### Testing
+### Everything else
 
 ```bash
-mvn test                          # domain rules, surface contract, agents, ingest
-mvn verify                        # adds the store-backed projection and retrieval tests
-mvn test -Dtest=BenchmarkRunner   # cross-language parity and timings
+curl "localhost:9000/episodes/demo?last_n=5"       # the messages it was sent, newest first
+curl localhost:9000/entity-edge/<fact-id>          # one fact
+curl -X DELETE localhost:9000/entity-edge/<id>     # delete a fact, keep the message it came from
+curl -X DELETE localhost:9000/episode/<id>         # delete a message and anything only it taught
+curl -X DELETE localhost:9000/group/demo           # empty one group
+curl -X POST   localhost:9000/clear                # empty every group
 ```
 
-118 tests. Tests needing the store **skip rather than fail** when none is reachable, so a green run
-is not by itself proof the store paths ran — read the skip count. The model is stubbed everywhere:
-a test that calls a real model measures the model's mood as much as the code.
+All of it is also available to AI assistants at `/mcp`. Both ways in match the original exactly —
+the addresses, the field names, the reply codes and even the wording of the messages it sends back
+were copied, because something already written to talk to the original has to keep working.
+
+### Tests
+
+```bash
+mvn test                          # the rules, the two ways in, and sending a message end to end
+mvn verify                        # adds the tests that need the database running
+mvn test -Dtest=BenchmarkRunner   # compares answers and speed against the original
+```
+
+118 tests. The ones needing the database **skip instead of failing** when it is not running, so all
+green does not by itself mean they ran — read the skipped count. No test calls a real model; one
+that did would be measuring the model as much as the code.
 
 ---
 
-## Configuration
+## Settings
 
-| Variable | Default | Notes |
+| Variable | Default | What happens |
 |---|---|---|
-| `OPENAI_API_KEY` | none | Extraction and embeddings. Unset means both degrade rather than fail — the service runs and learns nothing. |
-| `MEMORY_STORE_URL` | `http://127.0.0.1:8090` | Where the store is. |
-| `MEMORY_STORE_LEDGER` | `memory` | Which ledger to write. |
-| `MEMORY_AUTH_TOKEN` | none | Optional bearer token. **Unset means no authentication**, which is what keeps a default build caller-compatible with the original. Setting it is a deliberate divergence. |
+| `OPENAI_API_KEY` | none | Reading messages and comparing meanings. Without it the service runs and learns nothing rather than failing. |
+| `MEMORY_STORE_URL` | `http://127.0.0.1:8090` | Where the database is. |
+| `MEMORY_STORE_LEDGER` | `memory` | Which collection to write to. |
+| `MEMORY_AUTH_TOKEN` | none | An optional password on every request. **Without it there is no password**, which is what lets anything written for the original keep working. Setting it is a deliberate difference. |
 
 ---
 
-## Divergences from getzep/graphiti
+## Where it differs from getzep/graphiti
 
-Behaviour that differs, and why. Everything not listed here is reproduced, including the defects.
+Everything not listed here was copied on purpose, including the parts that look like mistakes.
 
-| Behaviour | getzep/graphiti | This port | Decided in |
+| | getzep/graphiti | This port | Written down in |
 |---|---|---|---|
-| Graph, vector and full-text storage | four interchangeable backends | one store | D-001 |
-| Concurrent ingest within a partition | no deterministic behaviour | serialised by construction | RENDER-001 §3.5 |
-| Acknowledgement | after an in-memory enqueue | after a durable write, ~90 ms slower | budget report |
-| Bulk ingest | present | not implemented | slice, `docs/slice.md` |
-| Community detection | present | not implemented; the agent tool reports so | slice |
-| Cross-encoder reranking | constructed, never selected | absent | question log 41 |
-| Authentication | none | optional, off by default | D-008 |
-| Transaction time | read from the graph's own history | explicit fact metadata | RENDER-001 §4, corrected |
+| Storage | four databases to choose from | one | D-001 |
+| Two messages in one group at once | no predictable result | handled one at a time | RENDER-001 §3.5 |
+| Replying "got it" | after putting the work in memory | after writing it down, about 90 ms slower | budget report |
+| Loading many messages at once | yes | not built | `docs/slice.md` |
+| Grouping related things into clusters | yes | not built; the tool says so when asked | `docs/slice.md` |
+| A second pass to re-order search results | written, never switched on | left out | question 41 |
+| Password on requests | none | optional, off by default | D-008 |
+| Recording when the service learned something | read from the database's own history | written down explicitly | RENDER-001 §4, corrected |
 
-The last row is a correction to the specification, not to the original: FlureeDB accepts a
-query-at-an-earlier-commit parameter and silently ignores it, so a design that trusted it would
-answer every historical question with current data.
+That last row corrects the specification, not the original. FlureeDB accepts a request to answer a
+question as of an earlier point in its history, and then ignores it without saying so — a design
+that trusted it would answer every question about the past using today's data.
 
-Every reproduced defect and its Phase 2 correction flag is in
+Everything copied that looks like a mistake, and the setting that would change it, is in
 [`docs/correction-flags.md`](docs/correction-flags.md).
 
 ---
 
 ## Licence
 
-`getzep/graphiti` is Apache-2.0, © 2024 Zep Software, Inc. This port is a derived work and ships
-eight prompt files copied verbatim, so it is **Apache-2.0** too. See
+`getzep/graphiti` is Apache-2.0, © 2024 Zep Software, Inc. This port is built from it and includes
+eight instruction files copied word for word, so it is **Apache-2.0** as well. See
 [`ACKNOWLEDGEMENTS.md`](ACKNOWLEDGEMENTS.md).
