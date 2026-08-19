@@ -124,7 +124,7 @@ You will also need FlureeDB running on `127.0.0.1:8090`. That is where everythin
 - Maven 3.9 or newer
 - An Akka download token — run `akka code token` once
 - FlureeDB running on `127.0.0.1:8090`
-- `OPENAI_API_KEY`, for reading the messages you send it
+- A model provider key — `OPENAI_API_KEY` by default, or any other provider (see below)
 
 ### Start it
 
@@ -187,11 +187,84 @@ No test calls a real model.
 
 ---
 
+## Model providers
+
+The four agents run on whichever provider you select. Nothing in the code is tied to one — set
+`MODEL_PROVIDER` and the matching key, and restart.
+
+```bash
+export MODEL_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=...
+```
+
+Leave `MODEL_PROVIDER` unset to use OpenAI, which is what the original uses.
+
+### Hosted providers
+
+| `MODEL_PROVIDER` | Variables to set | Default model |
+|---|---|---|
+| `openai` *(default)* | `OPENAI_API_KEY` | `gpt-5.5` |
+| `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-5` |
+| `googleai-gemini` | `GOOGLE_AI_GEMINI_API_KEY` | `gemini-2.5-flash` |
+| `mistral-ai` | `MISTRAL_AI_API_KEY`, `MODEL_NAME` | none — set `MODEL_NAME` |
+| `vertex-ai` | `VERTEX_AI_API_KEY`, `VERTEX_AI_PROJECT_ID`, `VERTEX_AI_LOCATION`, `MODEL_NAME` | none — set `MODEL_NAME` |
+| `azure-openai` | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT` | set by deployment |
+| `bedrock` | `AWS_REGION`, `BEDROCK_MODEL_ID`, plus your usual AWS credentials | set by `BEDROCK_MODEL_ID` |
+| `hugging-face` | `HUGGING_FACE_ACCESS_TOKEN`, `HUGGING_FACE_MODEL_ID` | set by `HUGGING_FACE_MODEL_ID` |
+
+### Local providers
+
+No key required — only a reachable address.
+
+| `MODEL_PROVIDER` | Variables to set | Default address |
+|---|---|---|
+| `ollama` | `MODEL_NAME`, optionally `OLLAMA_BASE_URL` | `http://localhost:11434` |
+| `local-ai` | `MODEL_NAME`, optionally `LOCAL_AI_BASE_URL` | `http://localhost:8080/v1` |
+
+### Two models, not one
+
+Three agents use the main model. Writing entity summaries uses a smaller one, because the original
+asks for a reduced model at exactly that step. Each provider has a smaller twin, chosen for you
+when you choose the provider:
+
+| `MODEL_PROVIDER` | Main | Smaller |
+|---|---|---|
+| `openai` | `gpt-5.5` | `gpt-4.1-nano` |
+| `anthropic` | `claude-sonnet-5` | `claude-haiku-4-5` |
+| `googleai-gemini` | `gemini-2.5-flash` | `gemini-2.5-flash-lite` |
+
+`MODEL_NAME` overrides the main model and `SMALL_MODEL_NAME` the smaller one, so changing model and
+changing provider are independent:
+
+```bash
+export MODEL_PROVIDER=anthropic
+export ANTHROPIC_API_KEY=...
+export MODEL_NAME=claude-opus-5
+```
+
+For the providers with no default model, set `MODEL_NAME` and `SMALL_MODEL_NAME` to models the
+account can reach. Provider settings live in `src/main/resources/application.conf` if you want to
+pin a model rather than pass an environment variable.
+
+### Turning text into numbers
+
+Searching by meaning needs a second account, set separately. Anthropic and Bedrock serve chat models
+but no embeddings at all, so joining the two would mean picking a chat provider silently decided
+whether search works.
+
+| Variable | Default | What happens |
+|---|---|---|
+| `EMBEDDING_API_KEY` | falls back to `OPENAI_API_KEY` | Without either, search still answers — using word matching alone, and it says so. |
+| `EMBEDDING_BASE_URL` | `https://api.openai.com` | Any address speaking the OpenAI embeddings shape, which includes Azure OpenAI, LocalAI, Ollama and most gateways. |
+| `EMBEDDING_MODEL_NAME` | `text-embedding-3-small` | The original's model. |
+| `EMBEDDING_DIMENSIONS` | `1024` | The original's width. Change it and stored vectors from before the change stop matching. |
+
+---
+
 ## Settings
 
 | Variable | Default | What happens |
 |---|---|---|
-| `OPENAI_API_KEY` | none | Reading messages and comparing meanings. Without it the service runs and learns nothing rather than failing. |
 | `MEMORY_STORE_URL` | `http://127.0.0.1:8090` | Where the database is. |
 | `MEMORY_STORE_LEDGER` | `memory` | Which collection to write to. |
 | `MEMORY_AUTH_TOKEN` | none | An optional password on every request. Without it there is no password, which is what lets anything written for the original keep working. |

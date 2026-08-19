@@ -3,6 +3,7 @@ package io.akka.memory.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.typesafe.config.ConfigFactory;
 import io.akka.memory.application.FlureeStore.StoredFact;
 import java.time.Instant;
 import java.util.List;
@@ -31,7 +32,7 @@ class RetrievalIntegrationTest {
   static void connect() {
     store = FlureeStore.localhost();
     assumeTrue(store.isHealthy(), "no store reachable on 127.0.0.1:8090 — skipping");
-    retrieval = new RetrievalService(store, Embedder.fromEnvironment());
+    retrieval = new RetrievalService(store, Embedder.fromConfig(ConfigFactory.load()));
   }
 
   private static String freshPartition() {
@@ -148,6 +149,6 @@ class RetrievalIntegrationTest {
     // Without a model account there is no similarity list, and the fused order comes from the
     // lexical list alone. That is a weaker answer, and it says so rather than looking identical.
     assertThat(results.vectorListIncluded())
-        .isEqualTo(Embedder.fromEnvironment().isConfigured());
+        .isEqualTo(Embedder.fromConfig(ConfigFactory.load()).isConfigured());
   }
 }

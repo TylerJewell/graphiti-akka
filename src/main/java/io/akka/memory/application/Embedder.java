@@ -12,9 +12,15 @@ import java.util.List;
 /**
  * Turns text into the vector used for similarity retrieval.
  *
- * <p>Model and width are the source system's: {@code text-embedding-3-small} at 1024 dimensions.
- * Both matter — a different model puts the same sentence somewhere else in the space, and a
- * different width is a different space entirely, so neither can be treated as a free choice.
+ * <p><b>A separate account from the one the agents use, and deliberately so.</b> Several providers
+ * that serve chat models — Anthropic and Bedrock among them — offer no embeddings at all, so tying
+ * the two together would make choosing a chat provider silently decide whether search works.
+ * Anything speaking the OpenAI embeddings shape will do here, which includes Azure OpenAI, LocalAI,
+ * Ollama and most gateways.
+ *
+ * <p>Model and width default to the source system's: {@code text-embedding-3-small} at 1024
+ * dimensions. Both matter — a different model puts the same sentence somewhere else in the space,
+ * and a different width is a different space entirely, so neither is a free choice.
  *
  * <p><b>Absence is not an error.</b> With no key configured this returns nothing and the caller
  * drops the similarity list from the fusion rather than failing the query. That keeps the service
@@ -23,23 +29,37 @@ import java.util.List;
  */
 public final class Embedder {
 
-  public static final String MODEL = "text-embedding-3-small";
-  public static final int DIMENSIONS = 1024;
-
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final HttpClient http =
       HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
   private final String apiKey;
   private final String baseUrl;
+  private final String model;
+  private final int dimensions;
 
-  public Embedder(String apiKey, String baseUrl) {
+  public Embedder(String apiKey, String baseUrl, String model, int dimensions) {
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    this.model = model;
+    this.dimensions = dimensions;
   }
 
-  public static Embedder fromEnvironment() {
-    return new Embedder(System.getenv("OPENAI_API_KEY"), "https://api.openai.com");
+  public static Embedder fromConfig(com.typesafe.config.Config config) {
+    var section = config.getConfig("memory.embedding");
+    return new Embedder(
+        section.getString("api-key"),
+        section.getString("base-url"),
+        section.getString("model-name"),
+        section.getInt("dimensions"));
+  }
+
+  public String model() {
+    return model;
+  }
+
+  public int dimensions() {
+    return dimensions;
   }
 
   public boolean isConfigured() {
@@ -53,9 +73,9 @@ public final class Embedder {
     }
     try {
       ObjectNode body = MAPPER.createObjectNode();
-      body.put("model", MODEL);
+      body.put("model", model);
       body.put("input", text);
-      body.put("dimensions", DIMENSIONS);
+      body.put("dimensions", dimensions);
 
       var request =
           HttpRequest.newBuilder(URI.create(baseUrl + "/v1/embeddings"))

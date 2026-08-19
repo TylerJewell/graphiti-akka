@@ -30,7 +30,7 @@ public class Bootstrap implements ServiceSetup {
     this.store =
         new FlureeStore(
             config.getString("memory.store.base-url"), config.getString("memory.store.ledger"));
-    this.embedder = Embedder.fromEnvironment();
+    this.embedder = Embedder.fromConfig(config);
     this.retrieval = new RetrievalService(store, embedder);
   }
 
