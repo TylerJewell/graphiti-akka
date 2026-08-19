@@ -9,6 +9,8 @@ import akka.javasdk.client.ComponentClient;
 import akka.javasdk.workflow.Workflow;
 import io.akka.memory.domain.Entity;
 import io.akka.memory.domain.Episode;
+import io.akka.memory.domain.EntityResolution;
+import io.akka.memory.domain.ExtractionGuardrails;
 import io.akka.memory.domain.Fact;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -79,6 +81,9 @@ public class EpisodeIngestWorkflow extends Workflow<EpisodeIngestWorkflow.State>
     return effects().reply(currentState() == null ? "unknown" : currentState().status());
   }
 
+  /** The types offered to the model. Phase 1 offers only the base type — see SPEC-003. */
+  private static final List<String> OFFERED_TYPES = List.of(Entity.BASE_TYPE);
+
   /** Stages 3–4: extract entities, then resolve them against the partition. */
   @StepName("extract-entities")
   private StepEffect extractEntitiesStep() {
@@ -90,18 +95,19 @@ public class EpisodeIngestWorkflow extends Workflow<EpisodeIngestWorkflow.State>
             .method(EntityExtractionAgent::extract)
             .invoke(
                 new EntityExtractionAgent.Request(
-                    episode.content(), episode.kind(), List.of(Entity.BASE_TYPE)));
+                    episode.content(), episode.kind(), OFFERED_TYPES));
 
-    var entities = new ArrayList<Entity>();
-    for (var e : extracted.extractedEntities()) {
-      if (e.name() == null || e.name().isBlank()) {
-        continue; // empty names are dropped before anything else sees them
-      }
-      // An out-of-range type index degrades to the base type rather than raising or dropping.
-      String type = Entity.BASE_TYPE;
-      entities.add(
-          Entity.create(UUID.randomUUID().toString(), episode.partition(), e.name(), type));
-    }
+    var candidates =
+        extracted.extractedEntities().stream()
+            .map(
+                e ->
+                    new ExtractionGuardrails.Candidate(e.name(), e.entityTypeId(), e.episodeIndices()))
+            .toList();
+
+    // One episode is in scope, so every valid attribution index is 0.
+    var accepted = ExtractionGuardrails.apply(candidates, OFFERED_TYPES, java.util.Set.of(), 1);
+
+    var entities = resolveAll(accepted, episode.partition());
 
     componentClient
         .forEventSourcedEntity(episode.partition())
@@ -111,6 +117,84 @@ public class EpisodeIngestWorkflow extends Workflow<EpisodeIngestWorkflow.State>
     return stepEffects()
         .updateState(currentState().withEntities(entities))
         .thenTransitionTo(EpisodeIngestWorkflow::extractFactsStep);
+  }
+
+  /**
+   * Runs the recognition cascade for each extracted name, escalating to the model where the
+   * deterministic stages decline.
+   *
+   * <p>An entity that resolves is returned carrying the <em>existing</em> identifier, which is what
+   * makes recognition mean anything downstream: this episode's facts then attach to the entity that
+   * was already there rather than to one created a moment ago and never recorded.
+   */
+  private List<Entity> resolveAll(
+      List<ExtractionGuardrails.Accepted> accepted, String partition) {
+
+    var candidates = candidatesIn(partition);
+    var escalated = new ArrayList<String>();
+    var decided = new java.util.LinkedHashMap<String, Entity>();
+
+    for (var entity : accepted) {
+      var fresh =
+          Entity.create(UUID.randomUUID().toString(), partition, entity.name(), entity.type());
+      var outcome = EntityResolution.resolve(entity.name(), candidates);
+      if (outcome instanceof EntityResolution.Outcome.Resolved resolved) {
+        decided.put(entity.name(), fresh.withId(resolved.entityId()));
+      } else if (outcome instanceof EntityResolution.Outcome.Escalate) {
+        decided.put(entity.name(), fresh);
+        escalated.add(entity.name());
+      } else {
+        decided.put(entity.name(), fresh);
+      }
+    }
+
+    if (escalated.isEmpty() || candidates.isEmpty()) {
+      return List.copyOf(decided.values());
+    }
+
+    // The model picks a candidate by index into the list it was shown. It never sees an
+    // identifier, so the worst it can return is an out-of-range integer — which is absorbed as
+    // "no duplicate" rather than treated as an error.
+    var candidateNames = candidates.stream().map(EntityResolution.Candidate::name).toList();
+    var verdicts =
+        componentClient
+            .forAgent()
+            .inSession(sessionId())
+            .method(EntityResolutionAgent::resolve)
+            .invoke(new EntityResolutionAgent.Request(escalated, candidateNames));
+
+    for (var verdict : verdicts.entityResolutions()) {
+      if (verdict.id() < 0 || verdict.id() >= escalated.size()) {
+        continue;
+      }
+      int candidateIndex = verdict.duplicateCandidateId();
+      if (candidateIndex < 0 || candidateIndex >= candidates.size()) {
+        continue;
+      }
+      String name = escalated.get(verdict.id());
+      Entity proposed = decided.get(name);
+      if (proposed != null) {
+        decided.put(name, proposed.withId(candidates.get(candidateIndex).id()));
+      }
+    }
+
+    return List.copyOf(decided.values());
+  }
+
+  /**
+   * The candidate set the cascade compares against.
+   *
+   * <p>The source obtains this by embedding search per extracted name. Here it is every entity the
+   * partition already holds, which is the maximal-recall version of the same gate: it can only make
+   * recognition <em>more</em> likely, never less. Recorded as a divergence rather than presented as
+   * equivalent — a wider gate means the cascade's later stages see comparisons the source would
+   * never have shown them.
+   */
+  private List<EntityResolution.Candidate> candidatesIn(String partition) {
+    return componentClient
+        .forEventSourcedEntity(partition)
+        .method(PartitionEntity::candidates)
+        .invoke();
   }
 
   /** Stage 5: extract facts and let the partition decide which existing ones they close. */

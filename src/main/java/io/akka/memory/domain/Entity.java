@@ -48,6 +48,11 @@ public record Entity(
         attributes.isEmpty() ? other.attributes() : attributes);
   }
 
+  /** The same entity under the identifier it resolved to, when recognition found an existing one. */
+  public Entity withId(String resolvedId) {
+    return new Entity(resolvedId, partition, name, types, summary, attributes);
+  }
+
   public Entity withSummary(String newSummary) {
     return new Entity(id, partition, name, types, newSummary, attributes);
   }

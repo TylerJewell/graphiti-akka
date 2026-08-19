@@ -45,11 +45,26 @@ curl -X POST localhost:9000/messages -H 'content-type: application/json' -d '{
 
 # 3. Ask what is known
 curl -X POST localhost:9000/search -H 'content-type: application/json' \
-  -d '{"group_id": "demo", "query": "Where does Ana work?", "max_facts": 10}'
+  -d '{"group_ids": ["demo"], "query": "Where does Ana work?", "max_facts": 10}'
 ```
+
+Note `group_ids`, plural, and a list — that is the field name on the wire. Sending `group_id`
+here is not an error: the request succeeds, the partition falls back to `default`, and you get
+`{"facts": []}` back from a graph you never wrote to. An empty result is indistinguishable from
+a mistyped field, which is worth knowing before you conclude that nothing was stored.
 
 You should see **both** facts. The Acme one carries `invalid_at` set to July — closed, not
 deleted, and still returned. That is the point of the system: history survives correction.
+
+### If you have no model provider configured
+
+Ingest still answers 202 and the episode is still stored — you can see it with
+`curl "localhost:9000/episodes/demo?last_n=5"`. But no entities or facts are extracted, so the
+search above returns `{"facts": []}`.
+
+That is the designed degradation, not a failure: each agent falls back rather than failing the
+episode, so the pipeline runs to completion having learned nothing. It is also why the search
+result alone cannot tell you whether ingest worked. Check the episode listing first.
 
 ## What "correct" means here
 
@@ -71,15 +86,23 @@ reproduced behaviour so the improvement can be measured rather than asserted.
 Three layers, cheapest first:
 
 ```bash
-mvn test      # domain rules — the invalidation predicate, identity cascade, rank fusion.
-              # No runtime, no model, no store. Most of the risk lives here.
+mvn test      # domain rules and the surface contract, plus the agent and ingest tests that
+              # need the runtime. The domain tests — invalidation, identity cascade, rank
+              # fusion — need no runtime, no model and no store, and most of the risk is there.
 
-mvn verify    # component and endpoint integration, including wire-shape conformance
-              # against contracts/surface-inventory.json
+mvn verify    # adds store-backed integration: the projection, retrieval, the two timelines
+              # and wire-shape conformance against contracts/surface-inventory.json
+
+mvn test -Dtest=BenchmarkRunner   # cross-language parity and timings; writes
+                                  # target/bench-java.json for the comparison
 ```
 
-Then end-to-end parity against the source system's own benchmark, replaying pinned model
-responses so a difference means a porting error rather than model variance.
+Tests that need the store **skip rather than fail** when none is reachable, so the suite is
+green on a machine without one. A green run is therefore not by itself proof the store paths
+were exercised — read the skip count.
+
+The model is stubbed everywhere, deliberately. A test that calls a real model measures the
+model's mood as much as the code.
 
 ## Ingest ordering
 

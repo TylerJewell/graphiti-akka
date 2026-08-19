@@ -97,7 +97,7 @@ class PartitionEntityTest {
   }
 
   @Test
-  @DisplayName("a known entity is recognised rather than duplicated")
+  @DisplayName("an entity that resolved to a known identifier is recognised, not duplicated")
   void recognisesKnownEntity() {
     var testKit = kit();
     var ana = Entity.create("e1", "demo", "Ana Ruiz", Entity.BASE_TYPE);
@@ -105,18 +105,58 @@ class PartitionEntityTest {
     testKit.method(PartitionEntity::recordEntities).invoke(new PartitionEntity.RecordEntities(List.of(ana)));
     assertThat(testKit.getState().entities()).hasSize(1);
 
-    // Same name, different id: must resolve to the existing entity, not create a second.
-    var duplicate = Entity.create("e2", "demo", "ana ruiz", Entity.BASE_TYPE);
+    // The caller ran the cascade and it resolved to e1, so it presents e1 again.
+    var sameEntity = Entity.create("e1", "demo", "Ana Ruiz", Entity.BASE_TYPE);
     var result =
         testKit
             .method(PartitionEntity::recordEntities)
-            .invoke(new PartitionEntity.RecordEntities(List.of(duplicate)));
+            .invoke(new PartitionEntity.RecordEntities(List.of(sameEntity)));
 
     assertThat(result.isReply()).isTrue();
     assertThat(testKit.getState().entities()).hasSize(1);
     assertThat(result.getAllEvents()).hasSize(1);
     assertThat(result.getNextEventOfType(PartitionEvent.EntityRecognised.class).resolvedEntityId())
         .isEqualTo("e1");
+  }
+
+  @Test
+  @DisplayName("matching names are not merged here — that decision is not this component's")
+  void identicalNamesAreNotMergedByTheEntity() {
+    var testKit = kit();
+    testKit
+        .method(PartitionEntity::recordEntities)
+        .invoke(
+            new PartitionEntity.RecordEntities(
+                List.of(Entity.create("e1", "demo", "Ana Ruiz", Entity.BASE_TYPE))));
+
+    testKit
+        .method(PartitionEntity::recordEntities)
+        .invoke(
+            new PartitionEntity.RecordEntities(
+                List.of(Entity.create("e2", "demo", "ana ruiz", Entity.BASE_TYPE))));
+
+    // Two entities, deliberately. Merging on name here would be the global index lookup
+    // SPEC-003 §7 rules out — identical names are only ever merged when the cascade's candidate
+    // search surfaced one for the other, and that decision happens before this command is sent.
+    assertThat(testKit.getState().entities()).hasSize(2);
+  }
+
+  @Test
+  @DisplayName("the entity offers its own contents as candidates for the cascade")
+  void candidatesComeFromTheWriteModel() {
+    var testKit = kit();
+    testKit
+        .method(PartitionEntity::recordEntities)
+        .invoke(
+            new PartitionEntity.RecordEntities(
+                List.of(Entity.create("e1", "demo", "Ana Ruiz", Entity.BASE_TYPE))));
+
+    // Strictly consistent by construction: the projection could still be catching up here, and a
+    // cascade that read it would miss what the previous episode had just created.
+    var candidates = testKit.method(PartitionEntity::candidates).invoke().getReply();
+    assertThat(candidates).hasSize(1);
+    assertThat(candidates.get(0).id()).isEqualTo("e1");
+    assertThat(candidates.get(0).name()).isEqualTo("Ana Ruiz");
   }
 
   @Test

@@ -66,6 +66,7 @@ public record PartitionState(
       case PartitionEvent.FactRecorded e -> withFact(e.fact());
       case PartitionEvent.FactClosed e -> close(e);
       case PartitionEvent.EpisodeRemoved e -> withoutEpisode(e.episodeId());
+      case PartitionEvent.FactRemoved e -> withoutFact(e.factId());
       case PartitionEvent.PartitionCleared ignored -> empty(partition);
     };
   }
@@ -89,6 +90,15 @@ public record PartitionState(
           }
         });
     return new PartitionState(partition, entities, Map.copyOf(nextFacts), Map.copyOf(nextEpisodes));
+  }
+
+  private PartitionState withoutFact(String factId) {
+    if (!facts.containsKey(factId)) {
+      return this;
+    }
+    var next = new LinkedHashMap<>(facts);
+    next.remove(factId);
+    return new PartitionState(partition, entities, Map.copyOf(next), episodes);
   }
 
   private PartitionState withEntity(Entity entity) {

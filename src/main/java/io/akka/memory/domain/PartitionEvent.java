@@ -34,6 +34,16 @@ public sealed interface PartitionEvent {
   @TypeName("episode-removed")
   record EpisodeRemoved(String episodeId) implements PartitionEvent {}
 
+  /**
+   * A fact was deleted outright.
+   *
+   * <p>Not the same thing as {@link FactClosed}: closing ends a fact's validity and keeps it
+   * readable, whereas this removes it. The external surface offers both, and conflating them would
+   * lose history a caller asked to keep.
+   */
+  @TypeName("fact-removed")
+  record FactRemoved(String factId) implements PartitionEvent {}
+
   @TypeName("partition-cleared")
   record PartitionCleared() implements PartitionEvent {}
 }
