@@ -13,9 +13,8 @@ demonstrated rather than asserted. This is a derived work in substance even wher
 copy in text.
 
 **No application source was copied.** The Java in `src/main/java` was written against the
-specifications in
-[TylerJewell/akka-specify-harness](https://github.com/TylerJewell/akka-specify-harness) under
-`graphiti-port/`, not translated line by line.
+specifications in a separate repository, `akka-specify-harness`, under `graphiti-port/` — not
+translated line by line.
 
 **Eight files were copied verbatim, and had to be.** Everything in
 `src/main/resources/prompts/` is the original's model instructions, unaltered:

@@ -15,9 +15,8 @@ A port of [getzep/graphiti](https://github.com/getzep/graphiti) onto **Akka**, b
 can search. It was rebuilt here to find out how precisely a system has to be written down before it
 can be rebuilt on a different stack.
 
-Those written specifications are in
-[TylerJewell/akka-specify-harness](https://github.com/TylerJewell/akka-specify-harness) under
-`graphiti-port/`.
+Those written specifications live in a separate repository, `akka-specify-harness`, under
+`graphiti-port/`. It is private for now.
 
 ---
 
@@ -37,8 +36,9 @@ Those written specifications are in
 The original needs a graph database and a paid model account before it will start, so its startup
 time and memory use were never observed.
 
-Full method and every number behind these:
-[`bench/REPORT.md`](https://github.com/TylerJewell/akka-specify-harness/blob/main/graphiti-port/bench/REPORT.md).
+Every number here is reproduced by `mvn test -Dtest=BenchmarkRunner`, which writes
+`target/bench-java.json`. The full method and the numbers that did not make the list are in
+`graphiti-port/bench/REPORT.md` in the specifications repository.
 
 ---
 
@@ -53,9 +53,8 @@ Full method and every number behind these:
 The written figure is the one that tracks effort; the larger one is mostly the same context
 being read again on every exchange.
 
-Read from the session transcript by `toolkit/tokens.py` in the harness, on 2026-08-19. The record
-of every question and where the time went is in
-[`port-log/`](https://github.com/TylerJewell/akka-specify-harness/tree/main/port-log).
+Read from the session transcript on 2026-08-19. The record of every question asked and where the
+time went is in the specifications repository.
 
 ---
 
