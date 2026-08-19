@@ -27,7 +27,7 @@ import java.util.UUID;
  * system cannot — reaching states the specification says are unreachable, and breaking equivalence
  * in the one place the source is weakest. Suppressing a capability that costs nothing to have is
  * easy to forget, which is why it is called out here and asserted by a test rather than left as an
- * omission. Phase 2 turns it on behind a flag.
+ * omission. Tracked as OD-19; Phase 2 turns it on behind a flag.
  */
 @Component(id = "episode-ingest")
 public class EpisodeIngestWorkflow extends Workflow<EpisodeIngestWorkflow.State> {

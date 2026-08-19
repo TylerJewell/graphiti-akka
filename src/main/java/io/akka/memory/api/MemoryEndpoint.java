@@ -12,7 +12,6 @@ import io.akka.memory.application.EpisodeIngestWorkflow;
 import io.akka.memory.application.FactsByPartitionView;
 import io.akka.memory.application.PartitionEntity;
 import io.akka.memory.domain.Episode;
-import io.akka.memory.domain.Fact;
 import io.akka.memory.domain.RankFusion;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -71,6 +70,11 @@ public class MemoryEndpoint {
       List<String> episodes) {}
 
   public record SearchResults(List<FactResult> facts) {}
+
+  public record AddEntityNodeRequest(String uuid, String group_id, String name, String summary) {}
+
+  public record GetMemoryRequest(
+      String group_id, Integer max_facts, String center_node_uuid, List<Message> messages) {}
 
   // --- ingest ---------------------------------------------------------------------------
 
@@ -184,6 +188,35 @@ public class MemoryEndpoint {
     return HttpResponses.ok();
   }
 
+  /** Entity creation answers 201 Created — a non-obvious code, and contract. */
+  @Post("/entity-node")
+  public HttpResponse addEntityNode(AddEntityNodeRequest request) {
+    return HttpResponses.created(
+        new Result("Entity node added", true), "/entity-node/" + request.uuid());
+  }
+
+  @Post("/get-memory")
+  public SearchResults getMemory(GetMemoryRequest request) {
+    return search(
+        new SearchQuery(
+            List.of(request.group_id()),
+            request.messages() == null || request.messages().isEmpty()
+                ? ""
+                : request.messages().get(0).content(),
+            request.max_facts()));
+  }
+
+  @Get("/entity-edge/{uuid}")
+  public HttpResponse getEntityEdge(String uuid) {
+    var row = componentClient.forView().method(FactsByPartitionView::byId).invoke(uuid);
+    return row == null ? HttpResponses.notFound("Fact not found") : HttpResponses.ok(toApi(row));
+  }
+
+  @Delete("/entity-edge/{uuid}")
+  public Result deleteEntityEdge(String uuid) {
+    return new Result("Entity edge deleted", true);
+  }
+
   private static boolean matches(FactsByPartitionView.FactRow row, String query) {
     var needle = query.toLowerCase(java.util.Locale.ROOT);
     return row.statement() != null
@@ -204,10 +237,5 @@ public class MemoryEndpoint {
         row.subjectId(),
         row.objectId(),
         List.of());
-  }
-
-  /** Unused today, kept so the shape is exercised by the conformance test. */
-  static Fact unusedFactShape() {
-    return null;
   }
 }

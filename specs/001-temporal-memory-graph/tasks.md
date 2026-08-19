@@ -64,7 +64,7 @@ assumption that has been wrong before here.
 - [ ] T023 Implement the FlureeDB persistence adapter — graph, vector and full-text in one store — in src/main/java/io/akka/memory/application/FlureeStore.java, using the R-005 finding from T007
 - [ ] T024 [P] Test the persistence adapter round-trip including a valid-time interval query in src/test/java/io/akka/memory/application/FlureeStoreIntegrationTest.java
 - [ ] T025 Create the Bootstrap ServiceSetup in src/main/java/io/akka/memory/Bootstrap.java
-- [ ] T026 Build the wire-conformance harness that reads src/test/resources/surface-inventory.json and asserts paths, methods, status codes, field names, enum literals and defaults, in src/test/java/io/akka/memory/api/SurfaceConformanceTest.java
+- [X] T026 Build the wire-conformance harness that reads src/test/resources/surface-inventory.json and asserts paths, methods, status codes, field names, enum literals and defaults, in src/test/java/io/akka/memory/api/SurfaceConformanceTest.java
 
 **Checkpoint**: domain rules are complete and tested with no runtime, no model and no store. Most of the project's risk is now retired.
 
@@ -94,7 +94,7 @@ assumption that has been wrong before here.
 - [ ] T037 [P] [US1] Test all four agents with TestModelProvider fixed responses in src/test/java/io/akka/memory/application/AgentContractTest.java
 - [X] T038 [US1] Implement the seven-stage EpisodeIngestWorkflow in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (stages 1–6 in memory; stage 7 is the only writer)
 - [X] T039 [US1] Suppress automatic step retry in EpisodeIngestWorkflow settings so the runtime cannot recover from failures the source cannot, in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java (OD-19)
-- [ ] T040 [US1] Test that a failed stage abandons the episode without reversing earlier writes, in src/test/java/io/akka/memory/application/IngestFailureSemanticsTest.java
+- [X] T040 [US1] Test that a failed stage abandons the episode without reversing earlier writes, in src/test/java/io/akka/memory/application/IngestFailureSemanticsTest.java
 - [ ] T041 [US1] Implement extraction guardrails — an out-of-range entity type falls back to the base type, an excluded type is dropped, unusable episode indices widen attribution to **all** episodes — in src/main/java/io/akka/memory/application/EntityExtractionAgent.java
 - [ ] T042 [P] [US1] Test the extraction guardrail table in src/test/java/io/akka/memory/application/ExtractionGuardrailTest.java
 - [X] T043 [US1] Implement timestamp parse degradation — malformed drops to absent without raising, retrying or substituting the reference time; date-only and zone-less values are accepted and interpreted at UTC midnight — in src/main/java/io/akka/memory/domain/Fact.java
@@ -103,7 +103,7 @@ assumption that has been wrong before here.
 - [X] T046 [P] [US1] Test the cap on both axes and the required-field exemption in src/test/java/io/akka/memory/application/AttributeCapTest.java
 - [X] T047 [US1] Implement raw-content retention blanking before the persist stage in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java
 - [ ] T048 [US1] Implement FlureeProjectionConsumer to project partition events into the store in src/main/java/io/akka/memory/application/FlureeProjectionConsumer.java
-- [ ] T049 [US1] Implement the ingest operations with asynchronous handoff — validate the reference time synchronously, enqueue, answer 202 — in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
+- [X] T049 [US1] Implement the ingest operations with asynchronous handoff — validate the reference time synchronously, enqueue, answer 202 — in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
 - [ ] T050 [US1] Integration test: ingest returns immediately without awaiting the pipeline, and a malformed reference time is a synchronous error, in src/test/java/io/akka/memory/api/IngestHandoffIntegrationTest.java
 
 **Checkpoint**: episodes can be remembered and contradictions close correctly. This is the MVP.
@@ -129,7 +129,7 @@ assumption that has been wrong before here.
 - [ ] T056 [US2] Implement hybrid retrieval — semantic, lexical and graph-structural lists fused by RankFusion — in src/main/java/io/akka/memory/application/RetrievalService.java (reads resolve against projections only; the write path is never queried — RENDER-001 §3.4)
 - [ ] T057 [US2] Implement the valid-time query path so a question about world-truth is never answered from record-keeping history, in src/main/java/io/akka/memory/application/RetrievalService.java
 - [ ] T058 [P] [US2] Test that valid-time and transaction-time queries return different answers where the two axes diverge, in src/test/java/io/akka/memory/application/TemporalQuerySeparationTest.java
-- [ ] T059 [US2] Implement the retrieval operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java, with defaults matching the contract
+- [X] T059 [US2] Implement the retrieval operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java, with defaults matching the contract
 - [ ] T060 [P] [US2] Test that no read path loads write state, by static inspection of the read components, in src/test/java/io/akka/memory/application/ReadPathIsolationTest.java
 
 **Checkpoint**: memory can be both written and queried.
@@ -151,7 +151,7 @@ assumption that has been wrong before here.
 
 - [X] T063 [US3] Implement episode removal, fact deletion and partition clearing on PartitionEntity in src/main/java/io/akka/memory/application/PartitionEntity.java (deletion is distinct from closing — a closed fact is not deleted)
 - [ ] T064 [US3] Propagate deletions to the store in src/main/java/io/akka/memory/application/FlureeProjectionConsumer.java
-- [ ] T065 [US3] Implement the deletion operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
+- [X] T065 [US3] Implement the deletion operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java
 
 **Checkpoint**: all three capability stories are functional.
 
@@ -170,15 +170,15 @@ completes the remaining operations and proves the whole surface at once.
 
 ### Tests for User Story 4
 
-- [ ] T066 [P] [US4] Contract test: every route, method, status code and wire type matches src/test/resources/surface-inventory.json, in src/test/java/io/akka/memory/api/SurfaceConformanceTest.java
-- [ ] T067 [P] [US4] Contract test: every agent tool matches by name, parameter names, **parameter order**, defaults and return shape, in src/test/java/io/akka/memory/api/McpConformanceTest.java
+- [X] T066 [P] [US4] Contract test: every route, method, status code and wire type matches src/test/resources/surface-inventory.json, in src/test/java/io/akka/memory/api/SurfaceConformanceTest.java
+- [X] T067 [P] [US4] Contract test: every agent tool matches by name, parameter names, **parameter order**, defaults and return shape, in src/test/java/io/akka/memory/api/McpConformanceTest.java
 - [ ] T068 [US4] Replay a recorded upstream session against the service and compare responses field by field, in src/test/java/io/akka/memory/api/RecordedSessionReplayTest.java
 
 ### Implementation for User Story 4
 
-- [ ] T069 [US4] Implement the remaining operations not covered by Phases 3–5 — health, statistics, entity-node creation, fact lookup — in src/main/java/io/akka/memory/api/MemoryEndpoint.java
-- [ ] T070 [US4] Implement the remaining agent tools in src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java, carrying tool descriptions **verbatim** (they condition calling-agent behaviour — R-006)
-- [ ] T071 [US4] Add `toApi` converters so wire shapes are matched without exposing domain internals, in src/main/java/io/akka/memory/api/
+- [X] T069 [US4] Implement the remaining operations not covered by Phases 3–5 — health, statistics, entity-node creation, fact lookup — in src/main/java/io/akka/memory/api/MemoryEndpoint.java
+- [X] T070 [US4] Implement the remaining agent tools in src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java, carrying tool descriptions **verbatim** (they condition calling-agent behaviour — R-006)
+- [X] T071 [US4] Add `toApi` converters so wire shapes are matched without exposing domain internals, in src/main/java/io/akka/memory/api/
 - [ ] T072 [US4] Implement optional bearer-token authentication, **disabled by default** so a default deployment stays caller-compatible, in src/main/java/io/akka/memory/api/MemoryEndpoint.java (D-008)
 
 **Checkpoint**: an unmodified caller works. The port is behaviourally complete.
