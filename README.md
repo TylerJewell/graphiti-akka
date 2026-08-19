@@ -42,6 +42,23 @@ Full method and every number behind these:
 
 ---
 
+## What it took to build
+
+⏱️ **20.8 hours** from the first command to the published repository, **5.5** of them active<br>
+💬 **1,725** exchanges with the model<br>
+✍️ **1.9M** tokens written by the model, **803M** counting everything sent and re-sent<br>
+🙋 **8** questions to a human<br>
+🧪 **126** tests
+
+The written figure is the one that tracks effort; the larger one is mostly the same context
+being read again on every exchange.
+
+Measured by `toolkit/tokens.py` in the harness, which reads the session transcript. The record of
+every question and where the time went is in
+[`port-log/`](https://github.com/TylerJewell/akka-specify-harness/tree/main/port-log).
+
+---
+
 ## What it does
 
 - **A newer, conflicting fact ends the older one instead of deleting it.** If Ana joined Acme in
