@@ -12,9 +12,8 @@ A port of [getzep/graphiti](https://github.com/getzep/graphiti) onto **Akka**, b
 ## Where it came from
 
 `getzep/graphiti` is a Python library that turns a stream of messages into a memory an AI assistant
-can search. It was rebuilt here to work out how precisely a system has to be written down before it
-can be rebuilt somewhere else — the rebuild is the experiment, the way of writing it down is the
-result.
+can search. It was rebuilt here to find out how precisely a system has to be written down before it
+can be rebuilt on a different stack.
 
 Those written specifications are in
 [TylerJewell/akka-specify-harness](https://github.com/TylerJewell/akka-specify-harness) under
@@ -35,11 +34,10 @@ Those written specifications are in
 🚀 not measured → **3.55 seconds** to start<br>
 🔌 4 databases supported → **1**
 
-`not measured` means it was not measured. The original needs a graph database and a paid model
-account before it will start, and neither was set up, so how fast it starts and how much memory it
-uses were never observed.
+The original needs a graph database and a paid model account before it will start, so its startup
+time and memory use were never observed.
 
-Full method, and the numbers that did not make this list:
+Full method and every number behind these:
 [`bench/REPORT.md`](https://github.com/TylerJewell/akka-specify-harness/blob/main/graphiti-port/bench/REPORT.md).
 
 ---
@@ -50,10 +48,9 @@ Full method, and the numbers that did not make this list:
   March and Globex in July, the Acme fact is marked as having stopped being true in July. Ask about
   April and you still get Acme.
 - **It keeps "when it was true" separate from "when we found out".** Something learned in March
-  about January is recorded as true from January, and as unknown to the service until March. Asking
-  either question gives a different answer, which is the point.
-- **Two facts that start at the exact same moment both stay.** Neither ends the other. This is
-  copied from the original on purpose, not chosen.
+  about January is recorded as true from January, and as unknown to the service until March. Each
+  question gives a different answer.
+- **Two facts that start at the exact same moment both stay.** Neither ends the other.
 - **A fact with no date does nothing.** It cannot end another fact and nothing can end it.
 - **Deciding whether two names mean the same person runs through checks, cheapest first.** Look for
   things it might be, then an exact name match, then a near-match on spelling, and only then ask the
@@ -64,10 +61,7 @@ Full method, and the numbers that did not make this list:
 
 ---
 
-## Why it is built the way it is
-
-Five choices that shaped the rebuild. The words in bold are the names these ideas go by; the
-sentences under them do not use those words.
+## Design decisions
 
 **Event-sourced entities.** Instead of keeping only the newest version of everything, the service
 writes down each change as it happens and works out the current state by replaying that list. If it
@@ -141,7 +135,7 @@ akka local run
 
 It listens on **port 9000**.
 
-### The whole thing in three commands
+### Try it
 
 ```bash
 # Ana joins Acme in March
@@ -163,16 +157,7 @@ curl -X POST localhost:9000/search -H 'content-type: application/json' \
   -d '{"group_ids": ["demo"], "query": "Where does Ana work?", "max_facts": 10}'
 ```
 
-You get both facts back. The Acme one has `invalid_at` set to July — ended, not deleted.
-
-Three things about that sequence, each of which has cost someone an hour:
-
-- **Sending a message replies `202`, not `200`.** It means accepted, not finished. Wait a moment
-  before asking.
-- **`group_ids` is plural, and a list.** Sending `group_id` is not an error — it looks in a group
-  called `default` instead, and you get nothing back from a group you never wrote to.
-- **Without a model key, searching finds nothing** even though sending a message still replies
-  `202`. Run `curl "localhost:9000/episodes/demo?last_n=5"` to see whether the message arrived.
+You get both facts back. The Acme one now has an end date of July.
 
 ### Everything else
 
@@ -185,9 +170,9 @@ curl -X DELETE localhost:9000/group/demo           # empty one group
 curl -X POST   localhost:9000/clear                # empty every group
 ```
 
-All of it is also available to AI assistants at `/mcp`. Both ways in match the original exactly —
-the addresses, the field names, the reply codes and even the wording of the messages it sends back
-were copied, because something already written to talk to the original has to keep working.
+All of it is also available to AI assistants at `/mcp`. The addresses, field names, reply codes and
+wording of the replies match the original exactly, so anything already written to talk to the
+original works here unchanged.
 
 ### Tests
 
@@ -197,9 +182,8 @@ mvn verify                        # adds the tests that need the database runnin
 mvn test -Dtest=BenchmarkRunner   # compares answers and speed against the original
 ```
 
-118 tests. The ones needing the database **skip instead of failing** when it is not running, so all
-green does not by itself mean they ran — read the skipped count. No test calls a real model; one
-that did would be measuring the model as much as the code.
+118 tests. The ones needing the database skip when it is not running, so check the skipped count.
+No test calls a real model.
 
 ---
 
@@ -210,7 +194,7 @@ that did would be measuring the model as much as the code.
 | `OPENAI_API_KEY` | none | Reading messages and comparing meanings. Without it the service runs and learns nothing rather than failing. |
 | `MEMORY_STORE_URL` | `http://127.0.0.1:8090` | Where the database is. |
 | `MEMORY_STORE_LEDGER` | `memory` | Which collection to write to. |
-| `MEMORY_AUTH_TOKEN` | none | An optional password on every request. **Without it there is no password**, which is what lets anything written for the original keep working. Setting it is a deliberate difference. |
+| `MEMORY_AUTH_TOKEN` | none | An optional password on every request. Without it there is no password, which is what lets anything written for the original keep working. |
 
 ---
 
