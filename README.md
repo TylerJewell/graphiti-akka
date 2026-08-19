@@ -128,7 +128,7 @@ Restart Claude Code when it asks.
 
 **3. Open** http://localhost:9000/healthcheck.
 
-You will also need FlureeDB running on `127.0.0.1:8090`. That is where everything is stored.
+You will also need FlureeDB running, with a ledger called `memory`. See below.
 
 ---
 
@@ -139,8 +139,32 @@ You will also need FlureeDB running on `127.0.0.1:8090`. That is where everythin
 - Java 21 or newer
 - Maven 3.9 or newer
 - An Akka download token — run `akka code token` once
-- FlureeDB running on `127.0.0.1:8090`
+- FlureeDB running on `127.0.0.1:8090`, with a ledger called `memory`
 - A model provider key — `OPENAI_API_KEY` by default, or any other provider (see below)
+
+### The database
+
+```powershell
+irm https://github.com/fluree/db/releases/latest/download/fluree-db-cli-installer.ps1 | iex
+```
+
+```bash
+brew install fluree/tap/fluree          # macOS and Linux
+```
+
+Then start it and create the ledger the service writes to:
+
+```bash
+fluree server start --listen-addr 127.0.0.1:8090
+curl -X POST localhost:8090/v1/fluree/create -H 'content-type: application/json' -d '{"ledger":"memory"}'
+```
+
+**The ledger is not created for you.** Without it, sending a message still replies `202`,
+because the reply comes before the work; the write then fails in the background where nothing
+is watching. `curl "localhost:9000/episodes/demo?last_n=5"` coming back empty after a `202` is
+usually this.
+
+Built and tested against Fluree 4.1.5.
 
 ### Start it
 
