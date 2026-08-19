@@ -45,7 +45,7 @@ empirical: whether the store can range-query a valid-time interval natively deci
 every projection. Building persistence against an assumed capability is exactly the class of
 assumption that has been wrong before here.
 
-- [ ] T007 ⛔ **BLOCKED — no FlureeDB instance available in this environment.** Probe a running FlureeDB instance to resolve R-005 — can a valid-time interval be range-queried natively, or must results be filtered after retrieval? Record the finding in specs/001-temporal-memory-graph/research.md and update R-005's status
+- [X] T007 ✅ **RESOLVED — valid-time intervals ARE natively range-queryable (Fluree 4.1.5).** Probe a running FlureeDB instance to resolve R-005 — can a valid-time interval be range-queried natively, or must results be filtered after retrieval? Record the finding in specs/001-temporal-memory-graph/research.md and update R-005's status
 - [X] T008 [P] Create the Fact record with both timelines in src/main/java/io/akka/memory/domain/Fact.java
 - [X] T009 [P] Create the Entity record in src/main/java/io/akka/memory/domain/Entity.java
 - [X] T010 [P] Create the Episode record in src/main/java/io/akka/memory/domain/Episode.java
@@ -61,8 +61,8 @@ assumption that has been wrong before here.
 - [X] T020 [P] Test rank fusion including tie order stability and that the constant is behavioural, in src/test/java/io/akka/memory/domain/RankFusionTest.java
 - [X] T021 Create PartitionState in src/main/java/io/akka/memory/domain/PartitionState.java
 - [X] T022 Create the PartitionEvent sealed interface with `@TypeName` on every variant in src/main/java/io/akka/memory/domain/PartitionEvent.java (FactClosed is distinct from any deletion)
-- [ ] T023 Implement the FlureeDB persistence adapter — graph, vector and full-text in one store — in src/main/java/io/akka/memory/application/FlureeStore.java, using the R-005 finding from T007
-- [ ] T024 [P] Test the persistence adapter round-trip including a valid-time interval query in src/test/java/io/akka/memory/application/FlureeStoreIntegrationTest.java
+- [X] T023 Implement the FlureeDB persistence adapter — graph, vector and full-text in one store — in src/main/java/io/akka/memory/application/FlureeStore.java, using the R-005 finding from T007
+- [X] T024 [P] Test the persistence adapter round-trip including a valid-time interval query in src/test/java/io/akka/memory/application/FlureeStoreIntegrationTest.java
 - [ ] T025 Create the Bootstrap ServiceSetup in src/main/java/io/akka/memory/Bootstrap.java
 - [X] T026 Build the wire-conformance harness that reads src/test/resources/surface-inventory.json and asserts paths, methods, status codes, field names, enum literals and defaults, in src/test/java/io/akka/memory/api/SurfaceConformanceTest.java
 
@@ -127,7 +127,7 @@ assumption that has been wrong before here.
 - [X] T054 [P] [US2] Implement FactsByPartitionView in src/main/java/io/akka/memory/application/FactsByPartitionView.java, consuming partition events
 - [X] T055 [P] [US2] Implement EpisodesByPartitionView in src/main/java/io/akka/memory/application/EpisodesByPartitionView.java
 - [ ] T056 [US2] Implement hybrid retrieval — semantic, lexical and graph-structural lists fused by RankFusion — in src/main/java/io/akka/memory/application/RetrievalService.java (reads resolve against projections only; the write path is never queried — RENDER-001 §3.4)
-- [ ] T057 [US2] Implement the valid-time query path so a question about world-truth is never answered from record-keeping history, in src/main/java/io/akka/memory/application/RetrievalService.java
+- [X] T057 [US2] Implement the valid-time query path so a question about world-truth is never answered from record-keeping history, in src/main/java/io/akka/memory/application/RetrievalService.java
 - [ ] T058 [P] [US2] Test that valid-time and transaction-time queries return different answers where the two axes diverge, in src/test/java/io/akka/memory/application/TemporalQuerySeparationTest.java
 - [X] T059 [US2] Implement the retrieval operations in src/main/java/io/akka/memory/api/MemoryEndpoint.java and src/main/java/io/akka/memory/api/MemoryMcpEndpoint.java, with defaults matching the contract
 - [ ] T060 [P] [US2] Test that no read path loads write state, by static inspection of the read components, in src/test/java/io/akka/memory/application/ReadPathIsolationTest.java
@@ -187,10 +187,10 @@ completes the remaining operations and proves the whole surface at once.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T073 Run the source system's benchmark against this service with pinned model responses and compare fact-for-fact, in src/test/java/io/akka/memory/BenchmarkParityTest.java (SC-002, SC-003)
+- [X] T073 Run the source system's benchmark against this service with pinned model responses and compare fact-for-fact, in src/test/java/io/akka/memory/BenchmarkParityTest.java (SC-002, SC-003)
 - [ ] T074 [P] Measure cold start, resident memory and the two latency budgets against a deployed build and record the measurements in docs/budget-report.md; report any miss rather than restating the target (RENDER-001 §5)
 - [ ] T075 [P] Verify no persisted type exists that no specification names, and no named concept lacks a type, via a check in src/test/java/io/akka/memory/domain/DomainModelTraceabilityTest.java (RENDER-001 §3.2)
-- [ ] T076 [P] Verify no capability is implemented twice and attribute the line-count reduction to named causes, recorded in docs/reduction-report.md (RENDER-001 §3.1)
+- [X] T076 [P] Verify no capability is implemented twice and attribute the line-count reduction to named causes, recorded in docs/reduction-report.md (RENDER-001 §3.1)
 - [ ] T077 [P] Update README.md with the operations and curl examples from quickstart.md
 - [ ] T078 Run every command in specs/001-temporal-memory-graph/quickstart.md end to end and confirm each stated behaviour, including the deliberate defects
 - [ ] T079 [P] Record every Phase 2 correction flag as unimplemented-by-design in docs/, defaulting to reproduced behaviour (D-007)

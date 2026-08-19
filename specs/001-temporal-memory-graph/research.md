@@ -2,7 +2,8 @@
 
 Most of what this phase normally discovers was discovered before the feature existed, by
 probing the system being replaced. This file records those decisions in the expected form and
-is explicit about the **one** question that remains genuinely open.
+was explicit about the one question that remained genuinely open. That question is now
+answered — see R-005.
 
 ## R-001 — Unit of concurrency and serialisation
 
@@ -65,20 +66,29 @@ capability. Rejected, but it is the fallback if R-005 resolves badly.
 **Question**: can the store range-query a valid-time interval natively, or must the port filter
 after retrieval?
 
-**Status**: **unresolved, and empirical rather than decisional.** The axis argument in R-004
-follows from the store's published model; the concrete triple shape for an interval, and
-whether its indexes cover a range predicate, has never been checked against a running instance.
+**Status**: **RESOLVED 2026-08-19 against a running FlureeDB 4.1.5.**
 
-**Why it matters here**: if intervals are not natively range-queryable, every valid-time query
-becomes retrieve-then-filter, which changes the read-latency budget and possibly the projection
-shape. It does not change any specified behaviour.
+**Answer: yes, natively — no retrieve-then-filter needed.** An `xsd:dateTime` interval stored as
+explicit metadata is range-queryable in a single query, and the full valid-at predicate composes:
 
-**How it will be resolved**: probe a running instance before the persistence layer is written —
-the first task in Phase 2 sequencing, and a prerequisite for the read side.
+```
+["filter", "(<= ?from \"2024-09-01T00:00:00Z\")",
+           "(or (not (bound ?until)) (> ?until \"2024-09-01T00:00:00Z\"))"]
+```
 
-**Risk if deferred**: the projection would be built against an assumed capability. This is
-precisely the class of assumption that has been wrong before in this project, so it is called
-out rather than assumed.
+Verified end to end over the HTTP API against two facts with adjoining intervals: asking
+2024-03-01 returns the earlier fact, 2024-09-01 returns the later one. Query time 1.0–1.1 ms.
+
+**Consequences, all favourable:** the projection shape in R-003 stands unchanged, the read-latency
+budget is unaffected, and R-004's split — valid time as explicit metadata, transaction time from
+the commit log — is confirmed workable rather than merely plausible.
+
+**Two details the probe surfaced that the implementation needs:**
+
+- The filter vocabulary is `or` / `not` / `bound`, **not** `||`. `(coalesce ... true)` silently
+  returns zero rows rather than erroring, which is the more dangerous of the two mistakes.
+- The HTTP API is `POST /v1/fluree/query` and `POST /v1/fluree/update` — not the `/fluree/query`
+  path the previous generation used. `/health` is the liveness path.
 
 ## R-006 — Prompts are fixed inputs, not implementation choices
 
@@ -114,9 +124,14 @@ expensive; makes a failing test ambiguous between a porting error and model vari
 | R-002 | durable ingest, retry suppressed | settled; suppression tracked as OD-19 |
 | R-003 | reads from projections only | settled by RENDER-001 §3.4 |
 | R-004 | valid time explicit, transaction time native | settled in principle |
-| R-005 | native range query for intervals? | **open — probe before building persistence** |
+| R-005 | native range query for intervals? | **resolved — yes, natively (probed)** |
 | R-006 | prompts carried verbatim | settled by D-006 |
 | R-007 | pinned model responses in tests | settled |
 
-One open item, correctly classified as empirical. Nothing in Phase 1 is blocked by it, and the
-persistence layer is.
+**Nothing remains open.** R-005 was the only empirical unknown and it resolved favourably: the
+projection shape stands, the latency budget is unaffected, and the persistence layer is unblocked.
+
+Worth noting how it resolved. The answer was not derivable from the store's documentation — the
+axis *argument* was, but whether an index covers a range predicate over an interval is a property
+of a running instance. Reading would have produced a confident guess; probing produced the filter
+vocabulary as well, including one form that silently returns zero rows instead of erroring.
