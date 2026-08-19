@@ -6,12 +6,22 @@
         <artifactId>akka-javasdk-parent</artifactId>
         <version>3.6.3</version>
     </parent>
-    <groupId>com.example</groupId>
+    <groupId>io.akka</groupId>
     <artifactId>graphiti-akka</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>graphiti-akka</name>
     <dependencies>
+        <dependency>
+            <!-- BLAKE2b. The entity-identity hash is contract (SPEC-003 §3.4): substituting
+                 it produces a different graph while every behavioural test still passes.
+                 The JDK provides SHA-3 but not BLAKE2b, so a provider is unavoidable.
+                 Chosen over a hand-rolled RFC 7693 implementation because a silent bug in a
+                 hash is undetectable by the tests that depend on it. -->
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.78.1</version>
+        </dependency>
         <!-- Your dependencies go here -->
     </dependencies>
 </project>

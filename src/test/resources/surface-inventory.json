@@ -1,0 +1,698 @@
+{
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/messages",
+      "status": "status.HTTP_202_ACCEPTED",
+      "handler": "add_messages",
+      "params": [
+        [
+          "request",
+          "AddMessagesRequest",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/entity-node",
+      "status": "status.HTTP_201_CREATED",
+      "handler": "add_entity_node",
+      "params": [
+        [
+          "request",
+          "AddEntityNodeRequest",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/entity-edge/{uuid}",
+      "status": "status.HTTP_200_OK",
+      "handler": "delete_entity_edge",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/group/{group_id}",
+      "status": "status.HTTP_200_OK",
+      "handler": "delete_group",
+      "params": [
+        [
+          "group_id",
+          "str",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/episode/{uuid}",
+      "status": "status.HTTP_200_OK",
+      "handler": "delete_episode",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/clear",
+      "status": "status.HTTP_200_OK",
+      "handler": "clear",
+      "params": [
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/search",
+      "status": "status.HTTP_200_OK",
+      "handler": "search",
+      "params": [
+        [
+          "query",
+          "SearchQuery",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/entity-edge/{uuid}",
+      "status": "status.HTTP_200_OK",
+      "handler": "get_entity_edge",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/episodes/{group_id}",
+      "status": "status.HTTP_200_OK",
+      "handler": "get_episodes",
+      "params": [
+        [
+          "group_id",
+          "str",
+          null
+        ],
+        [
+          "last_n",
+          "int",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/get-memory",
+      "status": "status.HTTP_200_OK",
+      "handler": "get_memory",
+      "params": [
+        [
+          "request",
+          "GetMemoryRequest",
+          null
+        ],
+        [
+          "graphiti",
+          "ZepGraphitiDep",
+          null
+        ]
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/healthcheck",
+      "status": "200 (default)",
+      "handler": "healthcheck",
+      "params": []
+    }
+  ],
+  "mcp_tools": [
+    {
+      "name": "add_memory",
+      "params": [
+        [
+          "name",
+          "str",
+          null
+        ],
+        [
+          "episode_body",
+          "str",
+          null
+        ],
+        [
+          "group_id",
+          "str | None",
+          "None"
+        ],
+        [
+          "source",
+          "str",
+          "'text'"
+        ],
+        [
+          "source_description",
+          "str",
+          "''"
+        ],
+        [
+          "uuid",
+          "str | None",
+          "None"
+        ],
+        [
+          "reference_time",
+          "str | None",
+          "None"
+        ],
+        [
+          "excluded_entity_types",
+          "list[str] | None",
+          "None"
+        ],
+        [
+          "custom_extraction_instructions",
+          "str | None",
+          "None"
+        ],
+        [
+          "previous_episode_uuids",
+          "list[str] | None",
+          "None"
+        ],
+        [
+          "update_communities",
+          "bool",
+          "False"
+        ],
+        [
+          "saga",
+          "str | None",
+          "None"
+        ],
+        [
+          "saga_previous_episode_uuid",
+          "str | None",
+          "None"
+        ]
+      ],
+      "returns": "SuccessResponse | ErrorResponse"
+    },
+    {
+      "name": "search_nodes",
+      "params": [
+        [
+          "query",
+          "str",
+          null
+        ],
+        [
+          "group_ids",
+          "str | list[str] | None",
+          "None"
+        ],
+        [
+          "max_nodes",
+          "int",
+          "10"
+        ],
+        [
+          "entity_types",
+          "list[str] | None",
+          "None"
+        ],
+        [
+          "center_node_uuid",
+          "str | None",
+          "None"
+        ]
+      ],
+      "returns": "NodeSearchResponse | ErrorResponse"
+    },
+    {
+      "name": "search_memory_facts",
+      "params": [
+        [
+          "query",
+          "str",
+          null
+        ],
+        [
+          "group_ids",
+          "str | list[str] | None",
+          "None"
+        ],
+        [
+          "max_facts",
+          "int",
+          "10"
+        ],
+        [
+          "center_node_uuid",
+          "str | None",
+          "None"
+        ],
+        [
+          "edge_types",
+          "list[str] | None",
+          "None"
+        ],
+        [
+          "valid_at_after",
+          "str | None",
+          "None"
+        ],
+        [
+          "valid_at_before",
+          "str | None",
+          "None"
+        ],
+        [
+          "invalid_at_after",
+          "str | None",
+          "None"
+        ],
+        [
+          "invalid_at_before",
+          "str | None",
+          "None"
+        ]
+      ],
+      "returns": "FactSearchResponse | ErrorResponse"
+    },
+    {
+      "name": "delete_entity_edge",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ]
+      ],
+      "returns": "SuccessResponse | ErrorResponse"
+    },
+    {
+      "name": "delete_episode",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ]
+      ],
+      "returns": "SuccessResponse | ErrorResponse"
+    },
+    {
+      "name": "get_entity_edge",
+      "params": [
+        [
+          "uuid",
+          "str",
+          null
+        ]
+      ],
+      "returns": "dict[str, Any] | ErrorResponse"
+    },
+    {
+      "name": "get_episodes",
+      "params": [
+        [
+          "group_ids",
+          "str | list[str] | None",
+          "None"
+        ],
+        [
+          "max_episodes",
+          "int",
+          "10"
+        ]
+      ],
+      "returns": "EpisodeSearchResponse | ErrorResponse"
+    },
+    {
+      "name": "summarize_saga",
+      "params": [
+        [
+          "saga_name",
+          "str",
+          null
+        ],
+        [
+          "group_id",
+          "str | None",
+          "None"
+        ]
+      ],
+      "returns": "SagaSummaryResponse | ErrorResponse"
+    },
+    {
+      "name": "build_communities",
+      "params": [
+        [
+          "group_ids",
+          "str | list[str] | None",
+          "None"
+        ]
+      ],
+      "returns": "BuildCommunitiesResponse | ErrorResponse"
+    },
+    {
+      "name": "add_triplet",
+      "params": [
+        [
+          "source_node_name",
+          "str",
+          null
+        ],
+        [
+          "edge_name",
+          "str",
+          null
+        ],
+        [
+          "fact",
+          "str",
+          null
+        ],
+        [
+          "target_node_name",
+          "str",
+          null
+        ],
+        [
+          "group_id",
+          "str | None",
+          "None"
+        ],
+        [
+          "source_node_uuid",
+          "str | None",
+          "None"
+        ],
+        [
+          "target_node_uuid",
+          "str | None",
+          "None"
+        ]
+      ],
+      "returns": "TripletResponse | ErrorResponse"
+    },
+    {
+      "name": "get_episode_entities",
+      "params": [
+        [
+          "episode_uuids",
+          "list[str]",
+          null
+        ]
+      ],
+      "returns": "EpisodeEntitiesResponse | ErrorResponse"
+    },
+    {
+      "name": "clear_graph",
+      "params": [
+        [
+          "group_ids",
+          "str | list[str] | None",
+          "None"
+        ]
+      ],
+      "returns": "SuccessResponse | ErrorResponse"
+    },
+    {
+      "name": "get_status",
+      "params": [],
+      "returns": "StatusResponse"
+    }
+  ],
+  "dtos": {
+    "Result": [
+      [
+        "message",
+        "str",
+        null
+      ],
+      [
+        "success",
+        "bool",
+        null
+      ]
+    ],
+    "Message": [
+      [
+        "content",
+        "str",
+        "Field(..., description='The content of the message')"
+      ],
+      [
+        "uuid",
+        "str | None",
+        "Field(default=None, description='The uuid of the message (optional)')"
+      ],
+      [
+        "name",
+        "str",
+        "Field(default='', description='The name of the episodic node for the message (optional)')"
+      ],
+      [
+        "role_type",
+        "Literal['user', 'assistant', 'system']",
+        "Field(..., description='The role type of the message (user, assistant or system)')"
+      ],
+      [
+        "role",
+        "str | None",
+        "Field(description='The custom role of the message to be used alongside role_type (user name, bot name, etc.)')"
+      ],
+      [
+        "timestamp",
+        "datetime",
+        "Field(default_factory=utc_now, description='The timestamp of the message')"
+      ],
+      [
+        "source_description",
+        "str",
+        "Field(default='', description='The description of the source of the message')"
+      ]
+    ],
+    "AddMessagesRequest": [
+      [
+        "group_id",
+        "str",
+        "Field(..., description='The group id of the messages to add')"
+      ],
+      [
+        "messages",
+        "list[Message]",
+        "Field(..., description='The messages to add')"
+      ]
+    ],
+    "AddEntityNodeRequest": [
+      [
+        "uuid",
+        "str",
+        "Field(..., description='The uuid of the node to add')"
+      ],
+      [
+        "group_id",
+        "str",
+        "Field(..., description='The group id of the node to add')"
+      ],
+      [
+        "name",
+        "str",
+        "Field(..., description='The name of the node to add')"
+      ],
+      [
+        "summary",
+        "str",
+        "Field(default='', description='The summary of the node to add')"
+      ]
+    ],
+    "SearchQuery": [
+      [
+        "group_ids",
+        "list[str] | None",
+        "Field(None, description='The group ids for the memories to search')"
+      ],
+      [
+        "query",
+        "str",
+        null
+      ],
+      [
+        "max_facts",
+        "int",
+        "Field(default=10, description='The maximum number of facts to retrieve')"
+      ]
+    ],
+    "FactResult": [
+      [
+        "uuid",
+        "str",
+        null
+      ],
+      [
+        "name",
+        "str",
+        null
+      ],
+      [
+        "fact",
+        "str",
+        null
+      ],
+      [
+        "valid_at",
+        "datetime | None",
+        null
+      ],
+      [
+        "invalid_at",
+        "datetime | None",
+        null
+      ],
+      [
+        "created_at",
+        "datetime",
+        null
+      ],
+      [
+        "expired_at",
+        "datetime | None",
+        null
+      ],
+      [
+        "source_node_uuid",
+        "str",
+        null
+      ],
+      [
+        "target_node_uuid",
+        "str",
+        null
+      ],
+      [
+        "episodes",
+        "list[str]",
+        "Field(default_factory=list)"
+      ]
+    ],
+    "SearchResults": [
+      [
+        "facts",
+        "list[FactResult]",
+        null
+      ]
+    ],
+    "GetMemoryRequest": [
+      [
+        "group_id",
+        "str",
+        "Field(..., description='The group id of the memory to get')"
+      ],
+      [
+        "max_facts",
+        "int",
+        "Field(default=10, description='The maximum number of facts to retrieve')"
+      ],
+      [
+        "center_node_uuid",
+        "str | None",
+        "Field(..., description='The uuid of the node to center the retrieval on')"
+      ],
+      [
+        "messages",
+        "list[Message]",
+        "Field(..., description='The messages to build the retrieval query from ')"
+      ]
+    ],
+    "GetMemoryResponse": [
+      [
+        "facts",
+        "list[FactResult]",
+        "Field(..., description='The facts that were retrieved from the graph')"
+      ]
+    ]
+  },
+  "library_methods": [
+    "token_tracker",
+    "close",
+    "summarize_saga",
+    "build_indices_and_constraints",
+    "retrieve_episodes",
+    "add_episode",
+    "add_episode_bulk",
+    "build_communities",
+    "search",
+    "search_",
+    "get_nodes_and_edges_by_episode",
+    "add_triplet",
+    "remove_episode"
+  ],
+  "library_only": [
+    "add_episode_bulk"
+  ]
+}

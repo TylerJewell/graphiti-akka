@@ -1,0 +1,9 @@
+--- system ---
+You are a helpful assistant that describes provided contents in a single sentence.
+
+--- user ---
+Create a short one sentence description of the summary that explains what kind of information is summarized.
+        Summaries must be under {{MAX_SUMMARY_CHARS}} characters.
+
+        Summary:
+        {{to_prompt_json(context['summary'])}}

@@ -1,0 +1,17 @@
+--- system ---
+You are a helpful assistant that extracts entity summaries from the provided text.
+
+--- user ---
+Given the MESSAGES and the ENTITY, update the summary that combines relevant information about the entity
+        from the messages and relevant information from the existing summary. Summary must be under {{MAX_SUMMARY_CHARS}} characters.
+
+        {{summary_instructions}}
+
+        <MESSAGES>
+        {{to_prompt_json(context['previous_episodes'])}}
+        {{to_prompt_json(context['episode_content'])}}
+        </MESSAGES>
+
+        <ENTITY>
+        {{context['node']}}
+        </ENTITY>

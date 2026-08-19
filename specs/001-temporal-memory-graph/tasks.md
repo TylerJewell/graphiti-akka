@@ -27,11 +27,11 @@ Single Akka service. `src/main/java/io/akka/memory/{domain,application,api}` and
 
 **Purpose**: project initialisation
 
-- [ ] T001 Rename service and package from the template default to `io.akka.memory` in pom.xml and src/main/java/
-- [ ] T002 [P] Add the FlureeDB client dependency and connection configuration in pom.xml and src/main/resources/application.conf
+- [X] T001 Rename service and package from the template default to `io.akka.memory` in pom.xml and src/main/java/
+- [X] T002 [P] Add the FlureeDB client dependency and connection configuration in pom.xml and src/main/resources/application.conf
 - [ ] T003 [P] Configure the model provider per akka-context/sdk/model-provider-details.html.md in src/main/resources/application.conf
-- [ ] T004 [P] Copy the source system's extraction, resolution and summarisation instructions **verbatim** into src/main/resources/prompts/ (R-006 — paraphrasing invalidates every recorded model interaction)
-- [ ] T005 [P] Vendor specs/001-temporal-memory-graph/contracts/surface-inventory.json into src/test/resources/surface-inventory.json as the conformance fixture
+- [X] T004 [P] Copy the source system's extraction, resolution and summarisation instructions **verbatim** into src/main/resources/prompts/ (R-006 — paraphrasing invalidates every recorded model interaction)
+- [X] T005 [P] Vendor specs/001-temporal-memory-graph/contracts/surface-inventory.json into src/test/resources/surface-inventory.json as the conformance fixture
 - [ ] T006 [P] Configure TestKitSupport and TestModelProvider scaffolding in src/test/java/io/akka/memory/TestBase.java
 
 ---
@@ -45,20 +45,20 @@ empirical: whether the store can range-query a valid-time interval natively deci
 every projection. Building persistence against an assumed capability is exactly the class of
 assumption that has been wrong before here.
 
-- [ ] T007 Probe a running FlureeDB instance to resolve R-005 — can a valid-time interval be range-queried natively, or must results be filtered after retrieval? Record the finding in specs/001-temporal-memory-graph/research.md and update R-005's status
-- [ ] T008 [P] Create the Fact record with both timelines in src/main/java/io/akka/memory/domain/Fact.java
+- [ ] T007 ⛔ **BLOCKED — no FlureeDB instance available in this environment.** Probe a running FlureeDB instance to resolve R-005 — can a valid-time interval be range-queried natively, or must results be filtered after retrieval? Record the finding in specs/001-temporal-memory-graph/research.md and update R-005's status
+- [X] T008 [P] Create the Fact record with both timelines in src/main/java/io/akka/memory/domain/Fact.java
 - [ ] T009 [P] Create the Entity record in src/main/java/io/akka/memory/domain/Entity.java
 - [ ] T010 [P] Create the Episode record in src/main/java/io/akka/memory/domain/Episode.java
-- [ ] T011 Implement the invalidation predicate as a pure function on two Facts in src/main/java/io/akka/memory/domain/Fact.java (data-model.md §Fact — exact starts close nothing; out-of-order closes nothing; closing is never deletion)
-- [ ] T012 [P] Test the invalidation predicate exhaustively over every combination of absent/before/equal/after for four nullable instants in src/test/java/io/akka/memory/domain/FactInvalidationTest.java
-- [ ] T013 [P] Test that the invalidation test suite can fail — mutate the predicate (flip the comparison, drop each null guard) and assert every mutant is caught, in src/test/java/io/akka/memory/domain/FactInvalidationMutationTest.java
-- [ ] T014 [P] Implement exact and fuzzy name normalisation and the entropy gate `(length ≥ 6 OR tokens ≥ 2) AND entropy ≥ 1.5` in src/main/java/io/akka/memory/domain/EntityIdentity.java
-- [ ] T015 Implement 3-gram shingling, BLAKE2b-keyed MinHash over seeds 0–31, bands of 4, and Jaccard scoring in src/main/java/io/akka/memory/domain/EntityIdentity.java (constants are contract — substituting the hash or its byte order produces a different graph)
+- [X] T011 Implement the invalidation predicate as a pure function on two Facts in src/main/java/io/akka/memory/domain/Fact.java (data-model.md §Fact — exact starts close nothing; out-of-order closes nothing; closing is never deletion)
+- [X] T012 [P] Test the invalidation predicate exhaustively over every combination of absent/before/equal/after for four nullable instants in src/test/java/io/akka/memory/domain/FactInvalidationTest.java
+- [X] T013 [P] Test that the invalidation test suite can fail — mutate the predicate (flip the comparison, drop each null guard) and assert every mutant is caught, in src/test/java/io/akka/memory/domain/FactInvalidationMutationTest.java
+- [X] T014 [P] Implement exact and fuzzy name normalisation and the entropy gate `(length ≥ 6 OR tokens ≥ 2) AND entropy ≥ 1.5` in src/main/java/io/akka/memory/domain/EntityIdentity.java
+- [X] T015 Implement 3-gram shingling, BLAKE2b-keyed MinHash over seeds 0–31, bands of 4, and Jaccard scoring in src/main/java/io/akka/memory/domain/EntityIdentity.java (constants are contract — substituting the hash or its byte order produces a different graph)
 - [ ] T016 [P] Test the identity cascade against generated name pairs, asserting stage order and the ≥ 0.9 threshold, in src/test/java/io/akka/memory/domain/EntityIdentityTest.java
-- [ ] T017 [P] Test the identity constants against known values — BLAKE2b digest, big-endian conversion, band count — in src/test/java/io/akka/memory/domain/EntityIdentityConstantsTest.java
-- [ ] T018 [P] Test that a one-character name is matchable and a two-character name is not, reproducing the interacting short-name quirks, in src/test/java/io/akka/memory/domain/EntityIdentityShortNameTest.java
-- [ ] T019 Implement rank fusion with `rank_const = 1` and first-seen tie order in src/main/java/io/akka/memory/domain/RankFusion.java
-- [ ] T020 [P] Test rank fusion including tie order stability and that the constant is behavioural, in src/test/java/io/akka/memory/domain/RankFusionTest.java
+- [X] T017 [P] Test the identity constants against known values — BLAKE2b digest, big-endian conversion, band count — in src/test/java/io/akka/memory/domain/EntityIdentityConstantsTest.java
+- [X] T018 [P] Test that a one-character name is matchable and a two-character name is not, reproducing the interacting short-name quirks, in src/test/java/io/akka/memory/domain/EntityIdentityShortNameTest.java
+- [X] T019 Implement rank fusion with `rank_const = 1` and first-seen tie order in src/main/java/io/akka/memory/domain/RankFusion.java
+- [X] T020 [P] Test rank fusion including tie order stability and that the constant is behavioural, in src/test/java/io/akka/memory/domain/RankFusionTest.java
 - [ ] T021 Create PartitionState in src/main/java/io/akka/memory/domain/PartitionState.java
 - [ ] T022 Create the PartitionEvent sealed interface with `@TypeName` on every variant in src/main/java/io/akka/memory/domain/PartitionEvent.java (FactClosed is distinct from any deletion)
 - [ ] T023 Implement the FlureeDB persistence adapter — graph, vector and full-text in one store — in src/main/java/io/akka/memory/application/FlureeStore.java, using the R-005 finding from T007
@@ -97,8 +97,8 @@ assumption that has been wrong before here.
 - [ ] T040 [US1] Test that a failed stage abandons the episode without reversing earlier writes, in src/test/java/io/akka/memory/application/IngestFailureSemanticsTest.java
 - [ ] T041 [US1] Implement extraction guardrails — an out-of-range entity type falls back to the base type, an excluded type is dropped, unusable episode indices widen attribution to **all** episodes — in src/main/java/io/akka/memory/application/EntityExtractionAgent.java
 - [ ] T042 [P] [US1] Test the extraction guardrail table in src/test/java/io/akka/memory/application/ExtractionGuardrailTest.java
-- [ ] T043 [US1] Implement timestamp parse degradation — malformed drops to absent without raising, retrying or substituting the reference time; date-only and zone-less values are accepted and interpreted at UTC midnight — in src/main/java/io/akka/memory/domain/Fact.java
-- [ ] T044 [P] [US1] Test timestamp degradation against a hostile corpus, asserting nothing escapes as an exception, in src/test/java/io/akka/memory/domain/TimestampDegradationTest.java
+- [X] T043 [US1] Implement timestamp parse degradation — malformed drops to absent without raising, retrying or substituting the reference time; date-only and zone-less values are accepted and interpreted at UTC midnight — in src/main/java/io/akka/memory/domain/Fact.java
+- [X] T044 [P] [US1] Test timestamp degradation against a hostile corpus, asserting nothing escapes as an exception, in src/test/java/io/akka/memory/domain/TimestampDegradationTest.java
 - [ ] T045 [US1] Implement the attribute length cap as a **drop** with the required-field exemption in src/main/java/io/akka/memory/application/AttributeHydrationAgent.java
 - [ ] T046 [P] [US1] Test the cap on both axes and the required-field exemption in src/test/java/io/akka/memory/application/AttributeCapTest.java
 - [ ] T047 [US1] Implement raw-content retention blanking before the persist stage in src/main/java/io/akka/memory/application/EpisodeIngestWorkflow.java

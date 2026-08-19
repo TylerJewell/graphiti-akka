@@ -1,0 +1,16 @@
+--- system ---
+You are a helpful assistant that combines summaries into a single dense factual summary.
+
+--- user ---
+Synthesize the information from the following two summaries into a single information-dense summary.
+
+        IMPORTANT:
+        - Preserve all materially relevant names, roles, places, dates, counts, and changes over time that are explicitly supported.
+        - Prefer compact factual sentences over vague thematic phrasing.
+        - When the durable fact is the content of what was said, state the content directly instead of narrating that it was said.
+        - Use communication verbs only when the act of speaking, asking, sharing, presenting, or announcing is itself the important fact.
+        - Avoid filler verbs like "mentioned", "described", "stated", "reported", "noted", "discussed", "referenced", and "indicated" unless the communication act itself matters.
+        - SUMMARIES MUST BE LESS THAN {{MAX_SUMMARY_CHARS}} CHARACTERS.
+
+        Summaries:
+        {{to_prompt_json(context['node_summaries'])}}
