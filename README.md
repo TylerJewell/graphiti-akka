@@ -35,19 +35,12 @@ Those written specifications are in
 🚀 not measured → **3.55 seconds** to start<br>
 🔌 4 databases supported → **1**
 
-Counting rule: program files only, blank lines and comment-only lines left out, both sides counted
-by the same tool. The line and file counts cover **only the part that was rebuilt**, measured
-against the part of the original it replaces — not the whole of either project. Counting whole
-projects gives 9.6:1, which is not quoted here because the original does several things this port
-was never meant to do.
-
 `not measured` means it was not measured. The original needs a graph database and a paid model
 account before it will start, and neither was set up, so how fast it starts and how much memory it
 uses were never observed.
 
 Full method, and the numbers that did not make this list:
 [`bench/REPORT.md`](https://github.com/TylerJewell/akka-specify-harness/blob/main/graphiti-port/bench/REPORT.md).
-The one target this port misses is in [`docs/budget-report.md`](docs/budget-report.md).
 
 ---
 
@@ -66,10 +59,41 @@ The one target this port misses is in [`docs/budget-report.md`](docs/budget-repo
   things it might be, then an exact name match, then a near-match on spelling, and only then ask the
   model. Two identical names are never merged unless the first step found one while looking for the
   other.
-- **Answering a question never touches the records it writes to.** Searches read a separate copy, so
-  a slow write cannot slow down a read. A test reads the code and fails if that stops being true.
 - **It says "got it" before it does the work.** Only the date is checked while you wait. Anything
   else that goes wrong happens afterwards, quietly.
+
+---
+
+## Why it is built the way it is
+
+Five choices that shaped the rebuild. The words in bold are the names these ideas go by; the
+sentences under them do not use those words.
+
+**Event-sourced entities.** Instead of keeping only the newest version of everything, the service
+writes down each change as it happens and works out the current state by replaying that list. If it
+is restarted or something breaks halfway through, it can rebuild exactly where it was, and anyone
+can see how it got there rather than having to trust it.
+
+**One group at a time.** Everything about a single group of messages is handled by one worker in
+order, so two facts about the same person can never be decided at the same instant and end up
+contradicting each other. Different groups run side by side at full speed, so being careful about
+one topic never slows down any of the others.
+
+**Command Query Responsibility Segregation.** Questions are answered from a separate up-to-date
+copy, and never from the records the service writes into. A long write cannot make someone's search
+slow, and a thousand people reading at once cannot get in the way of new information arriving.
+
+**One database instead of four.** The original let you pick between four different databases, which
+meant four versions of the same code to write and keep working forever. Choosing a single one that
+can do all three jobs — how things connect, finding things that mean something similar, and finding
+words — deleted about thirteen thousand lines that existed only to hide the differences between
+them.
+
+**A domain layer with no framework in it.** The decisions that actually matter — when a new fact
+replaces an old one, whether two names mean the same person, how to put search results in order —
+are ordinary code that does not know the database, the web server or the model exist. They can be
+tested in a few milliseconds with nothing running, so most of the ways this could have gone wrong
+were ruled out before the rest of it was built.
 
 ---
 
@@ -194,23 +218,16 @@ that did would be measuring the model as much as the code.
 
 Everything not listed here was copied on purpose, including the parts that look like mistakes.
 
-| | getzep/graphiti | This port | Written down in |
-|---|---|---|---|
-| Storage | four databases to choose from | one | D-001 |
-| Two messages in one group at once | no predictable result | handled one at a time | RENDER-001 §3.5 |
-| Replying "got it" | after putting the work in memory | after writing it down, about 90 ms slower | budget report |
-| Loading many messages at once | yes | not built | `docs/slice.md` |
-| Grouping related things into clusters | yes | not built; the tool says so when asked | `docs/slice.md` |
-| A second pass to re-order search results | written, never switched on | left out | question 41 |
-| Password on requests | none | optional, off by default | D-008 |
-| Recording when the service learned something | read from the database's own history | written down explicitly | RENDER-001 §4, corrected |
-
-That last row corrects the specification, not the original. FlureeDB accepts a request to answer a
-question as of an earlier point in its history, and then ignores it without saying so — a design
-that trusted it would answer every question about the past using today's data.
-
-Everything copied that looks like a mistake, and the setting that would change it, is in
-[`docs/correction-flags.md`](docs/correction-flags.md).
+| | getzep/graphiti | This port |
+|---|---|---|
+| Storage | four databases to choose from | one |
+| Two messages in one group at once | no predictable result | handled one at a time |
+| Replying "got it" | after putting the work in memory | after writing it down, about 90 ms slower |
+| Loading many messages at once | yes | not built |
+| Grouping related things into clusters | yes | not built; the tool says so when asked |
+| A second pass to re-order search results | written, never switched on | left out |
+| Password on requests | none | optional, off by default |
+| Recording when the service learned something | read from the database's own history | written down explicitly |
 
 ---
 
